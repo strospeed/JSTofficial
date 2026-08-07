@@ -17,7 +17,6 @@ const firebaseConfig = {
   measurementId: "G-43CHG2Z9T6"
 };
 
-// Inisialisasi Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -42,7 +41,6 @@ export default function App() {
   const [events, setEvents] = useState([]);
   const [galleryItems, setGalleryItems] = useState([]);
 
-  // Discord Realtime API States
   const [discordApiData, setDiscordApiData] = useState({
     guildName: 'JST (Jawa Semua Teman)',
     onlineCount: 42,
@@ -58,13 +56,11 @@ export default function App() {
   const [activeVoiceSession, setActiveVoiceSession] = useState(null);
   const [voiceSeconds, setVoiceSeconds] = useState(0);
 
-  // Modals & Forms State
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
   const [isUploadGalleryOpen, setIsUploadGalleryOpen] = useState(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
 
-  // Form States
   const [galleryForm, setGalleryForm] = useState({ title: '', tag: 'Gaming', imgUrl: '' });
   const [galleryPreview, setGalleryPreview] = useState(null);
   const [regForm, setRegForm] = useState({ username: '', fullName: '', city: 'Jogja', discordTag: '', favoriteGame: 'Roblox' });
@@ -77,17 +73,14 @@ export default function App() {
   const [aiInput, setAiInput] = useState('');
 
   useEffect(() => {
-    // 1. Ambil data sesi user saat ini (hanya di HP ini)
     const savedUser = localStorage.getItem('jst_currentUser');
     if (savedUser) setCurrentUser(JSON.parse(savedUser));
 
-    // 2. Dengarkan perubahan data MEMBER secara realtime dari semua perangkat
     const qMembers = query(collection(db, 'members'), orderBy('xp', 'desc'));
     const unsubMembers = onSnapshot(qMembers, (snapshot) => {
       const membersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setMembers(membersData);
       
-      // Update session lokal jika ada perubahan XP di cloud
       if (savedUser) {
         const parsedUser = JSON.parse(savedUser);
         const updatedMe = membersData.find(m => m.username === parsedUser.username);
@@ -98,12 +91,10 @@ export default function App() {
       }
     });
 
-    // 3. Dengarkan perubahan data EVENT secara realtime
     const unsubEvents = onSnapshot(collection(db, 'events'), (snapshot) => {
       setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
-    // 4. Dengarkan perubahan data GALERI secara realtime
     const unsubGallery = onSnapshot(collection(db, 'gallery'), (snapshot) => {
       setGalleryItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
@@ -143,7 +134,6 @@ export default function App() {
       timer = setInterval(async () => {
         setVoiceSeconds(prev => prev + 1);
         if (currentUser && currentUser.id && voiceSeconds > 0 && voiceSeconds % 10 === 0) {
-          // Tambah XP dan simpan ke Cloud agar hp lain bisa lihat dia naik level
           const userRef = doc(db, 'members', currentUser.id);
           const updatedXp = currentUser.xp + 5;
           const updatedVoiceMinutes = currentUser.voiceMinutes + 1;
@@ -197,11 +187,9 @@ export default function App() {
     };
 
     try {
-      // Simpan pendaftaran ke Database
       const docRef = await addDoc(collection(db, 'members'), newMember);
       const userWithId = { id: docRef.id, ...newMember };
       
-      // Simpan info login di HP/Browser ini
       setCurrentUser(userWithId);
       localStorage.setItem('jst_currentUser', JSON.stringify(userWithId));
       
@@ -209,7 +197,7 @@ export default function App() {
       setRegForm({ username: '', fullName: '', city: 'Jogja', discordTag: '', favoriteGame: 'Roblox' });
       setRegAvatarPreview(null);
     } catch (error) {
-      alert("Gagal mendaftar. Pastikan aturan database Firebase sudah 'allow read, write: if true;'");
+      alert("Gagal mendaftar. Pastikan aturan database Firebase sudah diatur.");
       console.error(error);
     }
   };
@@ -335,7 +323,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white relative overflow-x-hidden">
       
-      {/* Background Animated Aurora Effects */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] animate-pulse" />
         <div className="absolute top-1/3 right-1/4 w-[500px] h-[500px] bg-purple-600/15 rounded-full blur-[150px]" />
@@ -382,7 +369,7 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setIsRegisterOpen(true)}
-                className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/50 transition duration-300 flex items-center gap-2"
+                className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-indigo-600/35 hover:shadow-indigo-500/50 transition duration-300 flex items-center gap-2"
               >
                 <UserCheck className="w-4 h-4" />
                 <span>Daftar Member</span>
@@ -528,7 +515,6 @@ export default function App() {
         </div>
       </section>
 
-      {}
       <section id="events" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
           <div>
@@ -716,7 +702,6 @@ export default function App() {
         </div>
       </section>
 
-      {}
       <section id="games" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
         <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-xs font-semibold mb-2">
@@ -836,7 +821,6 @@ export default function App() {
         )}
       </section>
 
-      {}
       <section id="gallery" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
           <div>
