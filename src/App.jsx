@@ -1,25 +1,25 @@
 import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc } from 'firebase/firestore';
 import {
-  Users,
-  Radio,
-  Trophy,
-  Calendar,
-  Gamepad2,
-  Image as ImageIcon,
-  Sparkles,
-  ShieldCheck,
-  ChevronRight,
-  Menu,
-  X,
-  Upload,
-  Plus,
-  Clock,
-  Zap,
-  Bot,
-  UserCheck,
-  Film,
-  Volume2
+  Users, Radio, Trophy, Calendar, Gamepad2, Image as ImageIcon,
+  Sparkles, ShieldCheck, ChevronRight, Menu, X, Upload, Plus,
+  Clock, Zap, Bot, UserCheck, Film, Volume2
 } from 'lucide-react';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAWCXIdc80wTjCkQ_VW3Vq6dS-lR3GJJZY",
+  authDomain: "jst-official.firebaseapp.com",
+  projectId: "jst-official",
+  storageBucket: "jst-official.firebasestorage.app",
+  messagingSenderId: "481567359336",
+  appId: "1:481567359336:web:6c7ac453c61550374496dd",
+  measurementId: "G-43CHG2Z9T6"
+};
+
+// Inisialisasi Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 const DISCORD_INVITE_CODE = '4GzW6KTAyZ';
 const DISCORD_INVITE_URL = `https://discord.gg/${DISCORD_INVITE_CODE}`;
@@ -64,41 +64,57 @@ export default function App() {
   const [isUploadGalleryOpen, setIsUploadGalleryOpen] = useState(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
 
-  // Gallery Upload Form State
+  // Form States
   const [galleryForm, setGalleryForm] = useState({ title: '', tag: 'Gaming', imgUrl: '' });
   const [galleryPreview, setGalleryPreview] = useState(null);
-
-  // Member Register Form State
-  const [regForm, setRegForm] = useState({
-    username: '',
-    fullName: '',
-    city: 'Jogja',
-    discordTag: '',
-    favoriteGame: 'Roblox'
-  });
+  const [regForm, setRegForm] = useState({ username: '', fullName: '', city: 'Jogja', discordTag: '', favoriteGame: 'Roblox' });
   const [regAvatarPreview, setRegAvatarPreview] = useState(null);
+  const [eventForm, setEventForm] = useState({ title: '', category: 'Gaming', gameType: 'Roblox', date: '', time: '', prize: '', maxSlots: 10, description: '', bannerUrl: '' });
 
-  // Event Creation Form State
-  const [eventForm, setEventForm] = useState({
-    title: '',
-    category: 'Gaming',
-    gameType: 'Roblox',
-    date: '',
-    time: '',
-    prize: '',
-    maxSlots: 10,
-    description: '',
-    bannerUrl: ''
-  });
-
-  // AI Chat Bot States
   const [aiMessages, setAiMessages] = useState([
     { sender: 'bot', text: 'Halo Lur! Aku Mas JST, AI penolong komunitas Jawa Semua Teman. Ada yang bisa tak bantu seputar mabar, event, atau Discord?' }
   ]);
   const [aiInput, setAiInput] = useState('');
 
   useEffect(() => {
+    // 1. Ambil data sesi user saat ini (hanya di HP ini)
+    const savedUser = localStorage.getItem('jst_currentUser');
+    if (savedUser) setCurrentUser(JSON.parse(savedUser));
+
+    // 2. Dengarkan perubahan data MEMBER secara realtime dari semua perangkat
+    const qMembers = query(collection(db, 'members'), orderBy('xp', 'desc'));
+    const unsubMembers = onSnapshot(qMembers, (snapshot) => {
+      const membersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setMembers(membersData);
+      
+      // Update session lokal jika ada perubahan XP di cloud
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        const updatedMe = membersData.find(m => m.username === parsedUser.username);
+        if (updatedMe) {
+          setCurrentUser(updatedMe);
+          localStorage.setItem('jst_currentUser', JSON.stringify(updatedMe));
+        }
+      }
+    });
+
+    // 3. Dengarkan perubahan data EVENT secara realtime
+    const unsubEvents = onSnapshot(collection(db, 'events'), (snapshot) => {
+      setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    // 4. Dengarkan perubahan data GALERI secara realtime
+    const unsubGallery = onSnapshot(collection(db, 'gallery'), (snapshot) => {
+      setGalleryItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
     fetchDiscordData();
+
+    return () => {
+      unsubMembers();
+      unsubEvents();
+      unsubGallery();
+    };
   }, []);
 
   const fetchDiscordData = async () => {
@@ -115,7 +131,7 @@ export default function App() {
         }));
       }
     } catch (e) {
-      console.log('Using cached Discord invite data');
+      console.log('Using active simulated cached Discord data');
     } finally {
       setIsSyncingDiscord(false);
     }
@@ -124,20 +140,24 @@ export default function App() {
   useEffect(() => {
     let timer;
     if (activeVoiceSession) {
-      timer = setInterval(() => {
+      timer = setInterval(async () => {
         setVoiceSeconds(prev => prev + 1);
-        if (currentUser && voiceSeconds > 0 && voiceSeconds % 10 === 0) {
-          setMembers(prev => prev.map(m => {
-            if (m.id === currentUser.id) {
-              const updatedXp = m.xp + 5;
-              const updatedVoiceMinutes = m.voiceMinutes + 1;
-              const updatedLevel = Math.floor(updatedXp / 100) + 1;
-              const updatedUser = { ...m, xp: updatedXp, level: updatedLevel, voiceMinutes: updatedVoiceMinutes };
-              setCurrentUser(updatedUser);
-              return updatedUser;
-            }
-            return m;
-          }));
+        if (currentUser && currentUser.id && voiceSeconds > 0 && voiceSeconds % 10 === 0) {
+          // Tambah XP dan simpan ke Cloud agar hp lain bisa lihat dia naik level
+          const userRef = doc(db, 'members', currentUser.id);
+          const updatedXp = currentUser.xp + 5;
+          const updatedVoiceMinutes = currentUser.voiceMinutes + 1;
+          const updatedLevel = Math.floor(updatedXp / 100) + 1;
+          
+          try {
+            await updateDoc(userRef, {
+              xp: updatedXp,
+              voiceMinutes: updatedVoiceMinutes,
+              level: updatedLevel
+            });
+          } catch (error) {
+            console.error("Gagal update XP", error);
+          }
         }
       }, 1000);
     }
@@ -153,14 +173,13 @@ export default function App() {
     }
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     if (!regForm.username.trim()) return;
 
     const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(regForm.username)}&background=6366f1&color=fff&font-size=0.4`;
 
     const newMember = {
-      id: Date.now(),
       username: regForm.username,
       fullName: regForm.fullName || regForm.username,
       city: regForm.city,
@@ -173,17 +192,29 @@ export default function App() {
       eventsJoined: 0,
       badge: '🔥 Active Member',
       role: 'Member JST',
-      joinDate: 'Agustus 2026'
+      joinDate: 'Agustus 2026',
+      createdAt: new Date().toISOString()
     };
 
-    setMembers(prev => [newMember, ...prev]);
-    setCurrentUser(newMember);
-    setIsRegisterOpen(false);
-    setRegForm({ username: '', fullName: '', city: 'Jogja', discordTag: '', favoriteGame: 'Roblox' });
-    setRegAvatarPreview(null);
+    try {
+      // Simpan pendaftaran ke Database
+      const docRef = await addDoc(collection(db, 'members'), newMember);
+      const userWithId = { id: docRef.id, ...newMember };
+      
+      // Simpan info login di HP/Browser ini
+      setCurrentUser(userWithId);
+      localStorage.setItem('jst_currentUser', JSON.stringify(userWithId));
+      
+      setIsRegisterOpen(false);
+      setRegForm({ username: '', fullName: '', city: 'Jogja', discordTag: '', favoriteGame: 'Roblox' });
+      setRegAvatarPreview(null);
+    } catch (error) {
+      alert("Gagal mendaftar. Pastikan aturan database Firebase sudah 'allow read, write: if true;'");
+      console.error(error);
+    }
   };
 
-  const handleCreateEventSubmit = (e) => {
+  const handleCreateEventSubmit = async (e) => {
     e.preventDefault();
     if (!eventForm.title.trim()) return;
 
@@ -195,7 +226,6 @@ export default function App() {
     };
 
     const newEvent = {
-      id: Date.now(),
       title: eventForm.title,
       category: eventForm.category,
       gameType: eventForm.gameType,
@@ -206,14 +236,17 @@ export default function App() {
       maxSlots: parseInt(eventForm.maxSlots) || 10,
       participants: currentUser ? [currentUser.id] : [],
       description: eventForm.description || 'Mari mabar dan ramaikan event komunitas JST!',
-      banner: eventForm.bannerUrl || defaultBanners[eventForm.gameType] || defaultBanners.Roblox
+      banner: eventForm.bannerUrl || defaultBanners[eventForm.gameType] || defaultBanners.Roblox,
+      createdAt: new Date().toISOString()
     };
 
-    setEvents(prev => [newEvent, ...prev]);
-    setIsCreateEventOpen(false);
-    setEventForm({
-      title: '', category: 'Gaming', gameType: 'Roblox', date: '', time: '', prize: '', maxSlots: 10, description: '', bannerUrl: ''
-    });
+    try {
+      await addDoc(collection(db, 'events'), newEvent);
+      setIsCreateEventOpen(false);
+      setEventForm({ title: '', category: 'Gaming', gameType: 'Roblox', date: '', time: '', prize: '', maxSlots: 10, description: '', bannerUrl: '' });
+    } catch (error) {
+      console.error("Gagal membuat event", error);
+    }
   };
 
   const handleGalleryImageUpload = (e) => {
@@ -228,41 +261,49 @@ export default function App() {
     }
   };
 
-  const handleGallerySubmit = (e) => {
+  const handleGallerySubmit = async (e) => {
     e.preventDefault();
     if (!galleryForm.title.trim() || !galleryForm.imgUrl) return;
 
     const newItem = {
-      id: Date.now(),
       title: galleryForm.title,
       tag: galleryForm.tag,
       img: galleryForm.imgUrl,
       uploader: currentUser ? currentUser.username : 'Member JST',
-      date: 'Baru saja'
+      date: 'Baru saja',
+      createdAt: new Date().toISOString()
     };
 
-    setGalleryItems(prev => [newItem, ...prev]);
-    setIsUploadGalleryOpen(false);
-    setGalleryForm({ title: '', tag: 'Gaming', imgUrl: '' });
-    setGalleryPreview(null);
+    try {
+      await addDoc(collection(db, 'gallery'), newItem);
+      setIsUploadGalleryOpen(false);
+      setGalleryForm({ title: '', tag: 'Gaming', imgUrl: '' });
+      setGalleryPreview(null);
+    } catch (error) {
+      console.error("Gagal unggah foto", error);
+    }
   };
 
-  const toggleJoinEvent = (eventId) => {
+  const toggleJoinEvent = async (eventId) => {
     if (!currentUser) {
       setIsRegisterOpen(true);
       return;
     }
 
-    setEvents(prev => prev.map(ev => {
-      if (ev.id === eventId) {
-        const isAlreadyJoined = ev.participants.includes(currentUser.id);
-        const updatedParticipants = isAlreadyJoined
-          ? ev.participants.filter(id => id !== currentUser.id)
-          : [...ev.participants, currentUser.id];
-        return { ...ev, participants: updatedParticipants };
-      }
-      return ev;
-    }));
+    const event = events.find(ev => ev.id === eventId);
+    if (!event) return;
+
+    const isAlreadyJoined = event.participants.includes(currentUser.id);
+    const updatedParticipants = isAlreadyJoined
+      ? event.participants.filter(id => id !== currentUser.id)
+      : [...event.participants, currentUser.id];
+
+    try {
+      const eventRef = doc(db, 'events', eventId);
+      await updateDoc(eventRef, { participants: updatedParticipants });
+    } catch (error) {
+      console.error("Gagal gabung event", error);
+    }
   };
 
   const handleAiSend = (e) => {
@@ -301,7 +342,6 @@ export default function App() {
         <div className="absolute bottom-10 left-1/3 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[160px]" />
       </div>
 
-      {}
       <nav className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
           
@@ -381,7 +421,6 @@ export default function App() {
         )}
       </nav>
 
-      {}
       <section id="hero" className="relative pt-12 sm:pt-20 pb-16 sm:pb-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center z-10">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs sm:text-sm font-semibold mb-6 shadow-inner">
           <Sparkles className="w-4 h-4 text-indigo-400 animate-spin" />
@@ -426,7 +465,6 @@ export default function App() {
           )}
         </div>
 
-        {/* Discord Counter Banner */}
         <div className="mt-12 max-w-2xl mx-auto bg-slate-900/60 border border-slate-800/80 rounded-3xl p-4 sm:p-5 backdrop-blur-md flex flex-wrap items-center justify-around gap-4 text-center">
           <div>
             <div className="text-2xl sm:text-3xl font-black text-indigo-400">{discordApiData.onlineCount}</div>
@@ -447,7 +485,6 @@ export default function App() {
         </div>
       </section>
 
-      {}
       <section id="about" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative border-t border-slate-800/60">
         <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
           <h2 className="text-2xl sm:text-4xl font-black text-white mb-4">
@@ -536,7 +573,7 @@ export default function App() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {events.map((ev) => {
-              const isJoined = currentUser && ev.participants.includes(currentUser.id);
+              const isJoined = currentUser && ev.participants && ev.participants.includes(currentUser.id);
               return (
                 <div key={ev.id} className="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden flex flex-col hover:border-purple-500/40 transition">
                   <div className="h-44 relative">
@@ -561,7 +598,7 @@ export default function App() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Users className="w-3.5 h-3.5 text-purple-400" />
-                          <span>Peserta: {ev.participants.length} / {ev.maxSlots} Slots</span>
+                          <span>Peserta: {(ev.participants || []).length} / {ev.maxSlots} Slots</span>
                         </div>
                       </div>
                     </div>
@@ -584,7 +621,6 @@ export default function App() {
         )}
       </section>
 
-      {}
       <section id="voice" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
         <div className="bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-500/30 rounded-3xl p-6 sm:p-10 relative overflow-hidden">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-8">
@@ -725,7 +761,6 @@ export default function App() {
         </div>
       </section>
 
-      {}
       <section id="leaderboard" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
         <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-semibold mb-2">
@@ -861,7 +896,6 @@ export default function App() {
         )}
       </section>
 
-      {}
       <div className="fixed bottom-6 right-6 z-50">
         {isAiChatOpen ? (
           <div className="w-[calc(100vw-3rem)] sm:w-96 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[480px]">
@@ -912,7 +946,6 @@ export default function App() {
         )}
       </div>
 
-      {}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
@@ -1010,7 +1043,6 @@ export default function App() {
         </div>
       )}
 
-      {}
       {isCreateEventOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
@@ -1109,7 +1141,6 @@ export default function App() {
         </div>
       )}
 
-      {}
       {isUploadGalleryOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
@@ -1163,7 +1194,6 @@ export default function App() {
         </div>
       )}
 
-      {}
       <footer className="border-t border-slate-800/80 bg-slate-950 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
@@ -1188,7 +1218,6 @@ export default function App() {
           </p>
         </div>
       </footer>
-
     </div>
   );
 }
