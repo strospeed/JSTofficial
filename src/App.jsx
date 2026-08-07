@@ -1,17 +1,51 @@
 import React, { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, updateDoc, doc } from 'firebase/firestore';
 import {
-  Users, Radio, Trophy, Calendar, Gamepad2, Image as ImageIcon,
-  Sparkles, ShieldCheck, ChevronRight, Menu, X, Upload, Plus,
-  Clock, Zap, Bot, UserCheck, Film, Volume2
+  Users,
+  Radio,
+  Trophy,
+  Calendar,
+  Gamepad2,
+  Image as ImageIcon,
+  Sparkles,
+  ShieldCheck,
+  ChevronRight,
+  Menu,
+  X,
+  Upload,
+  Plus,
+  Clock,
+  Zap,
+  Bot,
+  UserCheck,
+  Film,
+  Volume2,
+  MessageSquare,
+  Send
 } from 'lucide-react';
 
+// Import Firebase SDK
+import { initializeApp } from "firebase/app";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  updateDoc, 
+  doc,
+  query,
+  orderBy 
+} from "firebase/firestore";
+import { 
+  getAuth, 
+  signInAnonymously 
+} from "firebase/auth";
+
+// Konfigurasi Firebase Proyek Anda
 const firebaseConfig = {
   apiKey: "AIzaSyAWCXIdc80wTjCkQ_VW3Vq6dS-lR3GJJZY",
   authDomain: "jst-official.firebaseapp.com",
   projectId: "jst-official",
-  storageBucket: "jst-official.firebasestorage.app",
+  storageBucket: "jst-official.appspot.com",
   messagingSenderId: "481567359336",
   appId: "1:481567359336:web:6c7ac453c61550374496dd",
   measurementId: "G-43CHG2Z9T6"
@@ -19,6 +53,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 const DISCORD_INVITE_CODE = '4GzW6KTAyZ';
 const DISCORD_INVITE_URL = `https://discord.gg/${DISCORD_INVITE_CODE}`;
@@ -40,7 +75,12 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [events, setEvents] = useState([]);
   const [galleryItems, setGalleryItems] = useState([]);
+  
+  // Chat States
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
 
+  // Discord Realtime API States
   const [discordApiData, setDiscordApiData] = useState({
     guildName: 'JST (Jawa Semua Teman)',
     onlineCount: 42,
@@ -54,49 +94,69 @@ export default function App() {
   });
   const [isSyncingDiscord, setIsSyncingDiscord] = useState(false);
   const [activeVoiceSession, setActiveVoiceSession] = useState(null);
-  const [voiceSeconds, setVoiceSeconds] = useState(0);
 
+  // Modals & Forms State
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
   const [isUploadGalleryOpen, setIsUploadGalleryOpen] = useState(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
 
+  // Gallery Upload Form State
   const [galleryForm, setGalleryForm] = useState({ title: '', tag: 'Gaming', imgUrl: '' });
   const [galleryPreview, setGalleryPreview] = useState(null);
-  const [regForm, setRegForm] = useState({ username: '', fullName: '', city: 'Jogja', discordTag: '', favoriteGame: 'Roblox' });
-  const [regAvatarPreview, setRegAvatarPreview] = useState(null);
-  const [eventForm, setEventForm] = useState({ title: '', category: 'Gaming', gameType: 'Roblox', date: '', time: '', prize: '', maxSlots: 10, description: '', bannerUrl: '' });
 
+  // Member Register Form State
+  const [regForm, setRegForm] = useState({
+    username: '',
+    fullName: '',
+    city: 'Jogja',
+    discordTag: '',
+    favoriteGame: 'Roblox'
+  });
+  const [regAvatarPreview, setRegAvatarPreview] = useState(null);
+
+  // Event Creation Form State
+  const [eventForm, setEventForm] = useState({
+    title: '',
+    category: 'Gaming',
+    gameType: 'Roblox',
+    date: '',
+    time: '',
+    prize: '',
+    maxSlots: 10,
+    description: '',
+    bannerUrl: ''
+  });
+
+  // AI Chat Bot States
   const [aiMessages, setAiMessages] = useState([
     { sender: 'bot', text: 'Halo Lur! Aku Mas JST, AI penolong komunitas Jawa Semua Teman. Ada yang bisa tak bantu seputar mabar, event, atau Discord?' }
   ]);
   const [aiInput, setAiInput] = useState('');
 
+  // Autentikasi Anonim & Sinkronisasi Realtime Firestore
   useEffect(() => {
-    const savedUser = localStorage.getItem('jst_currentUser');
-    if (savedUser) setCurrentUser(JSON.parse(savedUser));
+    signInAnonymously(auth).catch((err) => console.error("Auth error:", err));
 
-    const qMembers = query(collection(db, 'members'), orderBy('xp', 'desc'));
-    const unsubMembers = onSnapshot(qMembers, (snapshot) => {
-      const membersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setMembers(membersData);
-      
-      if (savedUser) {
-        const parsedUser = JSON.parse(savedUser);
-        const updatedMe = membersData.find(m => m.username === parsedUser.username);
-        if (updatedMe) {
-          setCurrentUser(updatedMe);
-          localStorage.setItem('jst_currentUser', JSON.stringify(updatedMe));
-        }
-      }
+    // Sinkronisasi Realtime Members
+    const unsubMembers = onSnapshot(collection(db, "members"), (snapshot) => {
+      setMembers(snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })));
     });
 
-    const unsubEvents = onSnapshot(collection(db, 'events'), (snapshot) => {
-      setEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    // Sinkronisasi Realtime Events
+    const unsubEvents = onSnapshot(collection(db, "events"), (snapshot) => {
+      setEvents(snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })));
     });
 
-    const unsubGallery = onSnapshot(collection(db, 'gallery'), (snapshot) => {
-      setGalleryItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    // Sinkronisasi Realtime Gallery
+    const unsubGallery = onSnapshot(collection(db, "gallery"), (snapshot) => {
+      setGalleryItems(snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })));
+    });
+
+    // Sinkronisasi Realtime Chat (diurutkan berdasarkan waktu)
+    const qChat = query(collection(db, "chats"), orderBy("timestamp", "asc"));
+    const unsubChat = onSnapshot(qChat, (snapshot) => {
+      setMessages(snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })));
     });
 
     fetchDiscordData();
@@ -105,6 +165,7 @@ export default function App() {
       unsubMembers();
       unsubEvents();
       unsubGallery();
+      unsubChat();
     };
   }, []);
 
@@ -122,37 +183,11 @@ export default function App() {
         }));
       }
     } catch (e) {
-      console.log('Using active simulated cached Discord data');
+      console.log('Using cached Discord invite data');
     } finally {
       setIsSyncingDiscord(false);
     }
   };
-
-  useEffect(() => {
-    let timer;
-    if (activeVoiceSession) {
-      timer = setInterval(async () => {
-        setVoiceSeconds(prev => prev + 1);
-        if (currentUser && currentUser.id && voiceSeconds > 0 && voiceSeconds % 10 === 0) {
-          const userRef = doc(db, 'members', currentUser.id);
-          const updatedXp = currentUser.xp + 5;
-          const updatedVoiceMinutes = currentUser.voiceMinutes + 1;
-          const updatedLevel = Math.floor(updatedXp / 100) + 1;
-          
-          try {
-            await updateDoc(userRef, {
-              xp: updatedXp,
-              voiceMinutes: updatedVoiceMinutes,
-              level: updatedLevel
-            });
-          } catch (error) {
-            console.error("Gagal update XP", error);
-          }
-        }
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [activeVoiceSession, voiceSeconds, currentUser]);
 
   const handleAvatarFileUpload = (e) => {
     const file = e.target.files[0];
@@ -170,6 +205,7 @@ export default function App() {
     const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(regForm.username)}&background=6366f1&color=fff&font-size=0.4`;
 
     const newMember = {
+      id: Date.now(),
       username: regForm.username,
       fullName: regForm.fullName || regForm.username,
       city: regForm.city,
@@ -179,26 +215,44 @@ export default function App() {
       level: 1,
       xp: 15,
       voiceMinutes: 0,
-      eventsJoined: 0,
       badge: '🔥 Active Member',
       role: 'Member JST',
-      joinDate: 'Agustus 2026',
-      createdAt: new Date().toISOString()
+      joinDate: 'Agustus 2026'
     };
 
     try {
-      const docRef = await addDoc(collection(db, 'members'), newMember);
-      const userWithId = { id: docRef.id, ...newMember };
-      
-      setCurrentUser(userWithId);
-      localStorage.setItem('jst_currentUser', JSON.stringify(userWithId));
-      
+      await addDoc(collection(db, "members"), newMember);
+      setCurrentUser(newMember);
       setIsRegisterOpen(false);
       setRegForm({ username: '', fullName: '', city: 'Jogja', discordTag: '', favoriteGame: 'Roblox' });
       setRegAvatarPreview(null);
-    } catch (error) {
-      alert("Gagal mendaftar. Pastikan aturan database Firebase sudah diatur.");
-      console.error(error);
+    } catch (err) {
+      console.error("Gagal mendaftar:", err);
+    }
+  };
+
+  // Kirim Pesan Chat Antar Member
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    if (!currentUser) {
+      setIsRegisterOpen(true);
+      return;
+    }
+
+    const newMessage = {
+      username: currentUser.username,
+      avatar: currentUser.avatar,
+      text: chatInput,
+      timestamp: Date.now()
+    };
+
+    try {
+      await addDoc(collection(db, "chats"), newMessage);
+      setChatInput('');
+    } catch (err) {
+      console.error("Gagal mengirim pesan chat:", err);
     }
   };
 
@@ -206,14 +260,8 @@ export default function App() {
     e.preventDefault();
     if (!eventForm.title.trim()) return;
 
-    const defaultBanners = {
-      Roblox: 'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?auto=format&fit=crop&w=800&q=80',
-      Valorant: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80',
-      'Mobile Legends': 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=800&q=80',
-      Film: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=800&q=80'
-    };
-
     const newEvent = {
+      id: Date.now(),
       title: eventForm.title,
       category: eventForm.category,
       gameType: eventForm.gameType,
@@ -224,16 +272,15 @@ export default function App() {
       maxSlots: parseInt(eventForm.maxSlots) || 10,
       participants: currentUser ? [currentUser.id] : [],
       description: eventForm.description || 'Mari mabar dan ramaikan event komunitas JST!',
-      banner: eventForm.bannerUrl || defaultBanners[eventForm.gameType] || defaultBanners.Roblox,
-      createdAt: new Date().toISOString()
+      banner: 'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?auto=format&fit=crop&w=800&q=80'
     };
 
     try {
-      await addDoc(collection(db, 'events'), newEvent);
+      await addDoc(collection(db, "events"), newEvent);
       setIsCreateEventOpen(false);
       setEventForm({ title: '', category: 'Gaming', gameType: 'Roblox', date: '', time: '', prize: '', maxSlots: 10, description: '', bannerUrl: '' });
-    } catch (error) {
-      console.error("Gagal membuat event", error);
+    } catch (err) {
+      console.error("Gagal buat event:", err);
     }
   };
 
@@ -254,43 +301,38 @@ export default function App() {
     if (!galleryForm.title.trim() || !galleryForm.imgUrl) return;
 
     const newItem = {
+      id: Date.now(),
       title: galleryForm.title,
       tag: galleryForm.tag,
       img: galleryForm.imgUrl,
       uploader: currentUser ? currentUser.username : 'Member JST',
-      date: 'Baru saja',
-      createdAt: new Date().toISOString()
+      date: 'Baru saja'
     };
 
     try {
-      await addDoc(collection(db, 'gallery'), newItem);
+      await addDoc(collection(db, "gallery"), newItem);
       setIsUploadGalleryOpen(false);
       setGalleryForm({ title: '', tag: 'Gaming', imgUrl: '' });
       setGalleryPreview(null);
-    } catch (error) {
-      console.error("Gagal unggah foto", error);
+    } catch (err) {
+      console.error("Gagal upload galeri:", err);
     }
   };
 
-  const toggleJoinEvent = async (eventId) => {
+  const toggleJoinEvent = async (ev) => {
     if (!currentUser) {
       setIsRegisterOpen(true);
       return;
     }
-
-    const event = events.find(ev => ev.id === eventId);
-    if (!event) return;
-
-    const isAlreadyJoined = event.participants.includes(currentUser.id);
+    const isAlreadyJoined = ev.participants.includes(currentUser.id);
     const updatedParticipants = isAlreadyJoined
-      ? event.participants.filter(id => id !== currentUser.id)
-      : [...event.participants, currentUser.id];
+      ? ev.participants.filter(id => id !== currentUser.id)
+      : [...ev.participants, currentUser.id];
 
     try {
-      const eventRef = doc(db, 'events', eventId);
-      await updateDoc(eventRef, { participants: updatedParticipants });
-    } catch (error) {
-      console.error("Gagal gabung event", error);
+      await updateDoc(doc(db, "events", ev.docId), { participants: updatedParticipants });
+    } catch (err) {
+      console.error("Gagal gabung event:", err);
     }
   };
 
@@ -323,15 +365,15 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500 selection:text-white relative overflow-x-hidden">
       
+      {/* Aurora Background Effects */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] animate-pulse" />
         <div className="absolute top-1/3 right-1/4 w-[500px] h-[500px] bg-purple-600/15 rounded-full blur-[150px]" />
-        <div className="absolute bottom-10 left-1/3 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[160px]" />
       </div>
 
+      {/* Navigation Header */}
       <nav className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
-          
           <a href="#" className="flex items-center gap-3 group">
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-cyan-400 p-0.5 shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition duration-300">
               <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
@@ -347,14 +389,13 @@ export default function App() {
             </div>
           </a>
 
-          <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-300">
+          <div className="hidden md:flex items-center gap-5 text-sm font-semibold text-slate-300">
             <a href="#hero" className="hover:text-indigo-400 transition">Beranda</a>
-            <a href="#about" className="hover:text-indigo-400 transition">Tentang JST</a>
+            <a href="#community-chat" className="hover:text-indigo-400 transition text-indigo-400 font-bold">💬 Live Chat</a>
             <a href="#events" className="hover:text-indigo-400 transition">Event</a>
-            <a href="#voice" className="hover:text-indigo-400 transition">Discord Voice</a>
+            <a href="#voice" className="hover:text-indigo-400 transition">Voice Chat</a>
             <a href="#games" className="hover:text-indigo-400 transition">Game Hub</a>
             <a href="#leaderboard" className="hover:text-indigo-400 transition">Peringkat</a>
-            <a href="#gallery" className="hover:text-indigo-400 transition">Galeri</a>
           </div>
 
           <div className="flex items-center gap-3">
@@ -369,7 +410,7 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setIsRegisterOpen(true)}
-                className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-indigo-600/35 hover:shadow-indigo-500/50 transition duration-300 flex items-center gap-2"
+                className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 transition flex items-center gap-2"
               >
                 <UserCheck className="w-4 h-4" />
                 <span>Daftar Member</span>
@@ -380,7 +421,7 @@ export default function App() {
               href={DISCORD_INVITE_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2.5 sm:px-4 sm:py-2.5 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-[#5865F2]/25 transition"
+              className="p-2.5 sm:px-4 sm:py-2.5 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold text-xs sm:text-sm flex items-center gap-2 transition"
             >
               <Radio className="w-4 h-4 animate-pulse" />
               <span className="hidden sm:inline">Discord</span>
@@ -398,17 +439,17 @@ export default function App() {
         {isMobileMenuOpen && (
           <div className="md:hidden border-b border-slate-800 bg-slate-950/95 backdrop-blur-2xl px-4 py-5 space-y-3">
             <a href="#hero" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-xl hover:bg-slate-900 text-sm font-semibold text-slate-200">Beranda</a>
-            <a href="#about" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-xl hover:bg-slate-900 text-sm font-semibold text-slate-200">Tentang JST</a>
+            <a href="#community-chat" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-xl hover:bg-slate-900 text-sm font-semibold text-indigo-400">💬 Live Chat Antar Member</a>
             <a href="#events" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-xl hover:bg-slate-900 text-sm font-semibold text-slate-200">Event Komunitas</a>
-            <a href="#voice" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-xl hover:bg-slate-900 text-sm font-semibold text-slate-200">Discord Voice Active</a>
+            <a href="#voice" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-xl hover:bg-slate-900 text-sm font-semibold text-slate-200">Voice Chat & Discord</a>
             <a href="#games" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-xl hover:bg-slate-900 text-sm font-semibold text-slate-200">Game Hub</a>
             <a href="#leaderboard" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-xl hover:bg-slate-900 text-sm font-semibold text-slate-200">Peringkat Keaktifan</a>
-            <a href="#gallery" onClick={() => setIsMobileMenuOpen(false)} className="block px-3 py-2 rounded-xl hover:bg-slate-900 text-sm font-semibold text-slate-200">Galeri</a>
           </div>
         )}
       </nav>
 
-      <section id="hero" className="relative pt-12 sm:pt-20 pb-16 sm:pb-28 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center z-10">
+      {/* Hero Section */}
+      <section id="hero" className="relative pt-12 sm:pt-20 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center z-10">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs sm:text-sm font-semibold mb-6 shadow-inner">
           <Sparkles className="w-4 h-4 text-indigo-400 animate-spin" />
           <span>Komunitas Gaming & Nongkrong Indonesia</span>
@@ -418,113 +459,195 @@ export default function App() {
           Selamat Datang di <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-300">JST</span>
         </h1>
 
-        <p className="text-slate-400 text-sm sm:text-xl max-w-3xl mx-auto mb-8 sm:mb-10 font-normal leading-relaxed">
-          <strong className="text-slate-200 font-semibold">Jawa Semua Teman</strong> — Tempat berkumpulnya para gamer, kawan cangkrukan online, nobar film, dan komunitas paling hangat tanpa sekat.
+        <p className="text-slate-400 text-sm sm:text-xl max-w-3xl mx-auto mb-8 font-normal leading-relaxed">
+          <strong className="text-slate-200 font-semibold">Jawa Semua Teman</strong> — Tempat mabar, ngobrol real-time lintas perangkat, dan nongkrong tanpa sekat.
         </p>
+      </section>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
-          <a
-            href={DISCORD_INVITE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-extrabold text-sm sm:text-base shadow-xl shadow-[#5865F2]/30 flex items-center justify-center gap-3 transition transform hover:-translate-y-0.5"
-          >
-            <Radio className="w-5 h-5" />
-            <span>Gabung Server Discord</span>
-          </a>
+      {/* ========================================== */}
+      {/* FITUR BARU: LIVE COMMUNITY CHAT (TEXT CHAT) */}
+      {/* ========================================== */}
+      <section id="community-chat" className="py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[550px]">
+          
+          {/* Chat Header */}
+          <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 p-4 sm:p-5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md">
+                <MessageSquare className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-black text-white text-base sm:text-lg">JST Global Community Chat</h3>
+                <p className="text-xs text-indigo-100 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" /> Realtime Cloud Messages
+                </p>
+              </div>
+            </div>
+            <div className="text-xs font-bold text-indigo-200 bg-black/20 px-3 py-1.5 rounded-xl hidden sm:block">
+              {currentUser ? `Login sebagai: ${currentUser.username}` : 'Belum Login Member'}
+            </div>
+          </div>
 
-          {!currentUser ? (
+          {/* Messages Box */}
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-slate-950/60">
+            {messages.length === 0 ? (
+              <div className="text-center py-20 text-slate-500">
+                <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                <p className="text-sm font-bold">Belum ada percakapan di chatroom.</p>
+                <p className="text-xs">Jadilah yang pertama mengirim pesan menyapa kawan JST!</p>
+              </div>
+            ) : (
+              messages.map((msg, index) => {
+                const isMe = currentUser && msg.username === currentUser.username;
+                return (
+                  <div key={msg.docId || index} className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
+                    <img src={msg.avatar || 'https://ui-avatars.com/api/?name=User'} alt="Avatar" className="w-9 h-9 rounded-xl object-cover border border-slate-700 shrink-0" />
+                    <div className={`max-w-[75%] sm:max-w-[60%] ${isMe ? 'text-right' : ''}`}>
+                      <div className="flex items-center gap-2 mb-1 px-1">
+                        <span className="text-xs font-extrabold text-indigo-300">{msg.username}</span>
+                        <span className="text-[10px] text-slate-500">
+                          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className={`p-3.5 rounded-2xl text-xs sm:text-sm leading-relaxed shadow-md ${
+                        isMe 
+                          ? 'bg-indigo-600 text-white rounded-tr-none' 
+                          : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-none'
+                      }`}>
+                        {msg.text}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Chat Input Form */}
+          <form onSubmit={handleSendMessage} className="p-3 sm:p-4 bg-slate-900 border-t border-slate-800 flex items-center gap-3">
+            <input
+              type="text"
+              placeholder={currentUser ? "Tulis pesan ke sesama member JST..." : "Silakan daftar/login member dulu untuk mengetik chat..."}
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              disabled={!currentUser}
+              className="flex-1 bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+            />
             <button
-              onClick={() => setIsRegisterOpen(true)}
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-extrabold text-sm sm:text-base flex items-center justify-center gap-2 transition"
+              type="submit"
+              disabled={!currentUser || !chatInput.trim()}
+              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition shrink-0"
             >
-              <UserCheck className="w-5 h-5 text-indigo-400" />
-              <span>Daftar Member JST</span>
+              <span>Kirim</span>
+              <Send className="w-4 h-4" />
             </button>
-          ) : (
+          </form>
+        </div>
+      </section>
+
+      {/* ========================================== */}
+      {/* VOICE CHAT SECTION (JITSI / DISCORD EMBED) */}
+      {/* ========================================== */}
+      <section id="voice" className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
+        <div className="bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-500/30 rounded-3xl p-6 sm:p-10 relative overflow-hidden">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-8">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-semibold mb-3">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" /> Instant Web Voice Rooms
+              </div>
+              <h2 className="text-2xl sm:text-4xl font-black text-white">Voice Chat Antar Player</h2>
+              <p className="text-slate-400 text-xs sm:text-base mt-1">
+                Gunakan ruang suara langsung di web atau sambungkan ke server Discord resmi JST.
+              </p>
+            </div>
+
             <a
-              href="#events"
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-extrabold text-sm sm:text-base flex items-center justify-center gap-2 transition"
+              href={DISCORD_INVITE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-3 rounded-2xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-[#5865F2]/30 transition"
             >
-              <Calendar className="w-5 h-5 text-purple-400" />
-              <span>Lihat Event Komunitas</span>
+              <Radio className="w-4 h-4" />
+              <span>Buka Server Discord Utama</span>
             </a>
+          </div>
+
+          {/* Voice Rooms Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {discordApiData.voiceRooms.map((room) => {
+              const isConnected = activeVoiceSession === room.id;
+              return (
+                <div key={room.id} className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-slate-200 truncate">{room.name}</span>
+                      <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 text-[10px] font-bold">
+                        Active
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mb-4">Ruang Suara Komunitas JST</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        if (!currentUser) {
+                          setIsRegisterOpen(true);
+                          return;
+                        }
+                        setActiveVoiceSession(isConnected ? null : room.id);
+                      }}
+                      className={`w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition ${
+                        isConnected
+                          ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse'
+                          : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                      }`}
+                    >
+                      <Volume2 className="w-4 h-4" />
+                      <span>{isConnected ? 'Keluar Voice Room' : 'Masuk Voice Room'}</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Embedded Jitsi WebRTC Voice Room (Muncul saat user klik masuk voice) */}
+          {activeVoiceSession && (
+            <div className="mt-6 bg-slate-950 border border-indigo-500/50 rounded-3xl p-4 overflow-hidden shadow-2xl">
+              <div className="flex items-center justify-between mb-3 px-2">
+                <span className="text-xs font-bold text-indigo-300 flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" /> Terhubung ke Room: {activeVoiceSession}
+                </span>
+                <button
+                  onClick={() => setActiveVoiceSession(null)}
+                  className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300"
+                >
+                  Tutup Voice
+                </button>
+              </div>
+              <div className="w-full h-[400px] rounded-2xl overflow-hidden bg-black">
+                <iframe
+                  src={`https://meet.jit.si/JSTCommunityRoom_${activeVoiceSession}`}
+                  allow="camera; microphone; fullscreen; display-capture"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                ></iframe>
+              </div>
+            </div>
           )}
         </div>
-
-        <div className="mt-12 max-w-2xl mx-auto bg-slate-900/60 border border-slate-800/80 rounded-3xl p-4 sm:p-5 backdrop-blur-md flex flex-wrap items-center justify-around gap-4 text-center">
-          <div>
-            <div className="text-2xl sm:text-3xl font-black text-indigo-400">{discordApiData.onlineCount}</div>
-            <div className="text-xs font-semibold text-slate-400 flex items-center gap-1 justify-center">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" /> Member Online
-            </div>
-          </div>
-          <div className="h-8 w-px bg-slate-800 hidden sm:block" />
-          <div>
-            <div className="text-2xl sm:text-3xl font-black text-purple-400">{discordApiData.totalCount}</div>
-            <div className="text-xs font-semibold text-slate-400">Total Komunitas</div>
-          </div>
-          <div className="h-8 w-px bg-slate-800 hidden sm:block" />
-          <div>
-            <div className="text-2xl sm:text-3xl font-black text-cyan-400">{members.length}</div>
-            <div className="text-xs font-semibold text-slate-400">Member Terdaftar Web</div>
-          </div>
-        </div>
       </section>
 
-      <section id="about" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto relative border-t border-slate-800/60">
-        <div className="text-center max-w-3xl mx-auto mb-12 sm:mb-16">
-          <h2 className="text-2xl sm:text-4xl font-black text-white mb-4">
-            Aktivitas Seru Serba Ada di <span className="text-indigo-400">JST</span>
-          </h2>
-          <p className="text-slate-400 text-xs sm:text-base leading-relaxed">
-            Tak hanya sekadar gaming, JST adalah rumah hangat tempat mencari teman sefrekuensi, berbincang santai, hingga mengadakan berbagai kegiatan seru.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="p-6 rounded-3xl bg-slate-900/50 border border-slate-800 hover:border-indigo-500/50 transition group">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-4 group-hover:scale-110 transition">
-              <Gamepad2 className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">Mabar Multi-Game</h3>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Sering mabar Roblox, Valorant, Mobile Legends, PUBG, Minecraft, hingga GTA V Roleplay setiap sore & malam.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-3xl bg-slate-900/50 border border-slate-800 hover:border-purple-500/50 transition group">
-            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4 group-hover:scale-110 transition">
-              <Film className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">Nobar Cinema & Film</h3>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Jadwal nonton bareng film aksi, serial terbaru, dan sinema favorit di Discord Voice Stage setiap minggunya.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-3xl bg-slate-900/50 border border-slate-800 hover:border-cyan-500/50 transition group">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center mb-4 group-hover:scale-110 transition">
-              <Volume2 className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-2">Cangkrukan & Chill Voice</h3>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Ngobrol santai seputar hobi, obrolan keseharian, karaoke online, hingga sharing session bareng teman-teman.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section id="events" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
+      {/* Events Section */}
+      <section id="events" className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/30 text-xs font-semibold mb-2">
               <Calendar className="w-3.5 h-3.5" /> Agenda Komunitas
             </div>
             <h2 className="text-2xl sm:text-4xl font-black text-white">Event & Turnamen Buatan Member</h2>
-            <p className="text-slate-400 text-xs sm:text-base mt-1">
-              Event dan turnamen yang dibuat langsung oleh sesama anggota JST. Siapa saja boleh bikin event!
-            </p>
           </div>
 
           <button
@@ -532,7 +655,7 @@ export default function App() {
               if (!currentUser) setIsRegisterOpen(true);
               else setIsCreateEventOpen(true);
             }}
-            className="px-5 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-purple-600/25 shrink-0 self-start sm:self-auto"
+            className="px-5 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-purple-600/25 shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>+ Buat Event Baru</span>
@@ -543,15 +666,12 @@ export default function App() {
           <div className="py-16 text-center bg-slate-900/40 rounded-3xl border border-slate-800 p-8">
             <Calendar className="w-12 h-12 text-slate-600 mx-auto mb-3" />
             <h3 className="font-bold text-white text-lg mb-1">Belum Ada Event Aktif</h3>
-            <p className="text-xs sm:text-sm text-slate-400 mb-6 max-w-md mx-auto">
-              Saat ini belum ada jadwal event atau turnamen yang dibuat. Jadilah member pertama yang membuat event komunitas!
-            </p>
             <button
               onClick={() => {
                 if (!currentUser) setIsRegisterOpen(true);
                 else setIsCreateEventOpen(true);
               }}
-              className="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs sm:text-sm"
+              className="mt-4 px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs"
             >
               + Buat Event Pertama
             </button>
@@ -559,9 +679,9 @@ export default function App() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {events.map((ev) => {
-              const isJoined = currentUser && ev.participants && ev.participants.includes(currentUser.id);
+              const isJoined = currentUser && ev.participants.includes(currentUser.id);
               return (
-                <div key={ev.id} className="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden flex flex-col hover:border-purple-500/40 transition">
+                <div key={ev.docId || ev.id} className="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden flex flex-col hover:border-purple-500/40 transition">
                   <div className="h-44 relative">
                     <img src={ev.banner} alt={ev.title} className="w-full h-full object-cover" />
                     <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-[10px] font-extrabold text-indigo-300 border border-slate-700">
@@ -572,29 +692,21 @@ export default function App() {
                     <div>
                       <h3 className="text-base font-bold text-white mb-2 leading-snug">{ev.title}</h3>
                       <p className="text-xs text-slate-400 line-clamp-2 mb-4">{ev.description}</p>
-                      
                       <div className="space-y-1.5 text-xs text-slate-300 mb-4">
                         <div className="flex items-center gap-2">
                           <Clock className="w-3.5 h-3.5 text-indigo-400" />
                           <span>{ev.date} — {ev.time}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Hadiah: {ev.prize}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
                           <Users className="w-3.5 h-3.5 text-purple-400" />
-                          <span>Peserta: {(ev.participants || []).length} / {ev.maxSlots} Slots</span>
+                          <span>Peserta: {ev.participants.length} / {ev.maxSlots} Slots</span>
                         </div>
                       </div>
                     </div>
-
                     <button
-                      onClick={() => toggleJoinEvent(ev.id)}
+                      onClick={() => toggleJoinEvent(ev)}
                       className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition ${
-                        isJoined
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
-                          : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                        isJoined ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-indigo-600 hover:bg-indigo-500 text-white'
                       }`}
                     >
                       {isJoined ? '✓ Terdaftar (Batal)' : 'Ikut Event Ini'}
@@ -607,136 +719,27 @@ export default function App() {
         )}
       </section>
 
-      <section id="voice" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
-        <div className="bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-500/30 rounded-3xl p-6 sm:p-10 relative overflow-hidden">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-8">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-semibold mb-3">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" /> Realtime Voice Sync
-              </div>
-              <h2 className="text-2xl sm:text-4xl font-black text-white">Live Voice Channel Discord</h2>
-              <p className="text-slate-400 text-xs sm:text-base mt-1">
-                Channel voice terhubung langsung dengan server Discord resmi JST (`https://discord.gg/4GzW6KTAyZ`).
-              </p>
-            </div>
-
-            <button
-              onClick={fetchDiscordData}
-              disabled={isSyncingDiscord}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-2 self-start lg:self-auto"
-            >
-              <Zap className={`w-4 h-4 text-amber-400 ${isSyncingDiscord ? 'animate-spin' : ''}`} />
-              <span>{isSyncingDiscord ? 'Syncing...' : 'Sync Data Realtime'}</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {discordApiData.voiceRooms.map((room) => {
-              const isCurrentSession = activeVoiceSession === room.id;
-              return (
-                <div key={room.id} className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-slate-200 truncate">{room.name}</span>
-                      <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 text-[10px] font-bold">
-                        {room.count} Member
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 mb-4">Channel Aktif Discord JST</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <a
-                      href={DISCORD_INVITE_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-2 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition"
-                    >
-                      <Radio className="w-3.5 h-3.5" />
-                      <span>Masuk Voice</span>
-                    </a>
-
-                    <button
-                      onClick={() => {
-                        if (!currentUser) {
-                          setIsRegisterOpen(true);
-                          return;
-                        }
-                        if (isCurrentSession) {
-                          setActiveVoiceSession(null);
-                        } else {
-                          setActiveVoiceSession(room.id);
-                          setVoiceSeconds(0);
-                        }
-                      }}
-                      className={`w-full py-1.5 rounded-xl text-[11px] font-bold border transition ${
-                        isCurrentSession
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse'
-                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      {isCurrentSession ? `⏳ Tracking (${voiceSeconds}s) +5XP` : 'Simulasi Timer Voice (+XP)'}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="w-6 h-6 text-indigo-400 shrink-0" />
-              <p className="text-xs text-slate-300">
-                Fitur ini mendeteksi aktivitas voice channel secara langsung. Makin sering join voice di Discord, makin tinggi XP membermu di website!
-              </p>
-            </div>
-            <a
-              href={DISCORD_INVITE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-extrabold text-white shrink-0"
-            >
-              Buka Discord App
-            </a>
-          </div>
-        </div>
-      </section>
-
-      <section id="games" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
+      {/* Game Hub Section */}
+      <section id="games" className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
         <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-xs font-semibold mb-2">
             <Gamepad2 className="w-3.5 h-3.5" /> Game Hub JST
           </div>
           <h2 className="text-2xl sm:text-4xl font-black text-white mb-2">Game Favorit Anggota Komunitas</h2>
-          <p className="text-slate-400 text-xs sm:text-base">
-            Pilih game favoritmu dan cari teman squad mabar setiap harinya.
-          </p>
         </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {GAMES_LIST.map((game) => (
             <div key={game.id} className="group bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden hover:border-indigo-500/50 transition duration-300">
               <div className="h-40 relative overflow-hidden">
                 <img src={game.banner} alt={game.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
                 <span className="absolute top-3 left-3 text-2xl">{game.icon}</span>
-                <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-[10px] font-extrabold text-cyan-300 border border-slate-700">
-                  ★ {game.rating}
-                </span>
               </div>
-
               <div className="p-5">
                 <h3 className="font-extrabold text-white text-base mb-1">{game.name}</h3>
                 <p className="text-xs text-slate-400 mb-3">{game.category}</p>
-
                 <div className="flex items-center justify-between pt-3 border-t border-slate-800/80">
                   <span className="text-[11px] font-bold text-indigo-400">{game.activeCount}</span>
-                  <a
-                    href={DISCORD_INVITE_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-indigo-600 text-white font-bold text-xs transition"
-                  >
+                  <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-indigo-600 text-white font-bold text-xs transition">
                     Join Squad
                   </a>
                 </div>
@@ -746,28 +749,19 @@ export default function App() {
         </div>
       </section>
 
-      <section id="leaderboard" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
+      {/* Leaderboard Section */}
+      <section id="leaderboard" className="py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
         <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-xs font-semibold mb-2">
             <Trophy className="w-3.5 h-3.5" /> Peringkat Anggota
           </div>
           <h2 className="text-2xl sm:text-4xl font-black text-white mb-2">Peringkat Keaktifan Member JST</h2>
-          <p className="text-slate-400 text-xs sm:text-base">
-            Daftar member terdaftar berdasarkan keaktifan mabar, durasi voice Discord, dan partisipasi event.
-          </p>
         </div>
-
         {members.length === 0 ? (
           <div className="py-12 text-center bg-slate-900/40 rounded-3xl border border-slate-800 p-6">
             <Users className="w-10 h-10 text-slate-600 mx-auto mb-3" />
             <h3 className="font-bold text-white text-base mb-1">Papan Peringkat Masih Kosong</h3>
-            <p className="text-xs text-slate-400 mb-4 max-w-sm mx-auto">
-              Belum ada member yang mendaftar. Jadilah member pertama untuk menduduki peringkat #1!
-            </p>
-            <button
-              onClick={() => setIsRegisterOpen(true)}
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs"
-            >
+            <button onClick={() => setIsRegisterOpen(true)} className="mt-3 px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold text-xs">
               Daftar Jadi Member Pertama
             </button>
           </div>
@@ -781,13 +775,13 @@ export default function App() {
                     <th className="p-4">Member</th>
                     <th className="p-4">Kota</th>
                     <th className="p-4">Level & XP</th>
-                    <th className="p-4">Durasi Voice</th>
+                    <th className="p-4">Game Favorit</th>
                     <th className="p-4 pr-6">Badge</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-xs font-semibold">
                   {sortedMembers.map((m, idx) => (
-                    <tr key={m.id} className="hover:bg-slate-800/40 transition">
+                    <tr key={m.docId || m.id} className="hover:bg-slate-800/40 transition">
                       <td className="p-4 pl-6 font-extrabold text-white">
                         {idx === 0 ? '🥇 #1' : idx === 1 ? '🥈 #2' : idx === 2 ? '🥉 #3' : `#${idx + 1}`}
                       </td>
@@ -806,7 +800,7 @@ export default function App() {
                           Lv.{m.level} ({m.xp} XP)
                         </span>
                       </td>
-                      <td className="p-4 text-slate-300">{m.voiceMinutes} Menit</td>
+                      <td className="p-4 text-slate-300">{m.favoriteGame}</td>
                       <td className="p-4 pr-6">
                         <span className="px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-amber-300 text-[10px] font-extrabold">
                           {m.badge}
@@ -821,65 +815,7 @@ export default function App() {
         )}
       </section>
 
-      <section id="gallery" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-800/60">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/30 text-xs font-semibold mb-2">
-              <ImageIcon className="w-3.5 h-3.5" /> Galeri Komunitas
-            </div>
-            <h2 className="text-2xl sm:text-4xl font-black text-white">Dokumentasi Mabar & Gathering</h2>
-            <p className="text-slate-400 text-xs sm:text-base mt-1">
-              Foto dan momen seru yang diunggah langsung oleh para member terdaftar JST.
-            </p>
-          </div>
-
-          <button
-            onClick={() => {
-              if (!currentUser) setIsRegisterOpen(true);
-              else setIsUploadGalleryOpen(true);
-            }}
-            className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-600/25 shrink-0 self-start sm:self-auto"
-          >
-            <Upload className="w-4 h-4" />
-            <span>+ Unggah Foto Momen</span>
-          </button>
-        </div>
-
-        {galleryItems.length === 0 ? (
-          <div className="py-12 text-center bg-slate-900/40 rounded-3xl border border-slate-800 p-6">
-            <ImageIcon className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <h3 className="font-bold text-white text-base mb-1">Belum Ada Foto Galeri</h3>
-            <p className="text-xs text-slate-400 mb-4 max-w-md mx-auto">
-              Galeri mabar dan gathering masih kosong. Jadilah member pertama yang mengunggah foto momen komunitas!
-            </p>
-            <button
-              onClick={() => {
-                if (!currentUser) setIsRegisterOpen(true);
-                else setIsUploadGalleryOpen(true);
-              }}
-              className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs"
-            >
-              + Unggah Foto Pertama
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {galleryItems.map((item) => (
-              <div key={item.id} className="group relative rounded-2xl overflow-hidden h-56 bg-slate-900 border border-slate-800">
-                <img src={item.img} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/95 via-slate-950/40 to-transparent opacity-90 p-4 flex flex-col justify-end">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-wider">{item.tag}</span>
-                    <span className="text-[10px] text-slate-400 font-medium">Oleh: {item.uploader}</span>
-                  </div>
-                  <h3 className="font-bold text-white text-sm leading-snug line-clamp-2">{item.title}</h3>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
+      {/* AI Assistant Chat Widget */}
       <div className="fixed bottom-6 right-6 z-50">
         {isAiChatOpen ? (
           <div className="w-[calc(100vw-3rem)] sm:w-96 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[480px]">
@@ -895,7 +831,6 @@ export default function App() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
             <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-950/50 text-xs">
               {aiMessages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -905,7 +840,6 @@ export default function App() {
                 </div>
               ))}
             </div>
-
             <form onSubmit={handleAiSend} className="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
               <input
                 type="text"
@@ -930,16 +864,15 @@ export default function App() {
         )}
       </div>
 
+      {/* Registration Modal */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
             <button onClick={() => setIsRegisterOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white p-1">
               <X className="w-5 h-5" />
             </button>
-
             <h3 className="text-xl font-black text-white mb-1">Daftar Member JST</h3>
             <p className="text-xs text-slate-400 mb-5">Bergabung dengan komunitas Jawa Semua Teman dan dapatkan akses penuh!</p>
-
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">Unggah Foto Galeri Profil</label>
@@ -958,7 +891,6 @@ export default function App() {
                   </label>
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">Gamertag / Username *</label>
                 <input
@@ -970,7 +902,6 @@ export default function App() {
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">Asal Kota</label>
@@ -988,7 +919,6 @@ export default function App() {
                     <option value="Lainnya">Kota Lain</option>
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">Game Utamamu</label>
                   <select
@@ -1004,21 +934,9 @@ export default function App() {
                   </select>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Discord Tag (Opsional)</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: surya#1234"
-                  value={regForm.discordTag}
-                  onChange={(e) => setRegForm({ ...regForm, discordTag: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 mt-2"
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 mt-2"
               >
                 Selesaikan Pendaftaran
               </button>
@@ -1027,16 +945,14 @@ export default function App() {
         </div>
       )}
 
+      {/* Create Event Modal */}
       {isCreateEventOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
             <button onClick={() => setIsCreateEventOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white p-1">
               <X className="w-5 h-5" />
             </button>
-
             <h3 className="text-xl font-black text-white mb-1">Buat Event / Turnamen</h3>
-            <p className="text-xs text-slate-400 mb-5">Inisiasi agenda mabar atau turnamen seru untuk sesama anggota JST.</p>
-
             <form onSubmit={handleCreateEventSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">Judul Event *</label>
@@ -1046,78 +962,10 @@ export default function App() {
                   placeholder="Contoh: Turnamen Roblox Survival JST"
                   value={eventForm.title}
                   onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none"
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">Kategori</label>
-                  <select
-                    value={eventForm.category}
-                    onChange={(e) => setEventForm({ ...eventForm, category: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
-                  >
-                    <option value="Gaming">Gaming / Mabar</option>
-                    <option value="Tournament">Turnamen</option>
-                    <option value="Nobar">Nobar Cinema</option>
-                    <option value="Gathering">Gathering</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">Game / Acara</label>
-                  <select
-                    value={eventForm.gameType}
-                    onChange={(e) => setEventForm({ ...eventForm, gameType: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
-                  >
-                    <option value="Roblox">Roblox</option>
-                    <option value="Valorant">Valorant</option>
-                    <option value="Mobile Legends">Mobile Legends</option>
-                    <option value="Film">Nobar Film</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">Tanggal</label>
-                  <input
-                    type="text"
-                    placeholder="Sabtu, 15 Ags 2026"
-                    value={eventForm.date}
-                    onChange={(e) => setEventForm({ ...eventForm, date: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">Jam</label>
-                  <input
-                    type="text"
-                    placeholder="19:30 WIB"
-                    value={eventForm.time}
-                    onChange={(e) => setEventForm({ ...eventForm, time: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Hadiah / Prize (Opsional)</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: Discord Nitro / Role Khusus"
-                  value={eventForm.prize}
-                  onChange={(e) => setEventForm({ ...eventForm, prize: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs shadow-lg shadow-purple-600/30 mt-2"
-              >
+              <button type="submit" className="w-full py-3 rounded-xl bg-purple-600 text-white font-extrabold text-xs">
                 Publikasikan Event Komunitas
               </button>
             </form>
@@ -1125,83 +973,11 @@ export default function App() {
         </div>
       )}
 
-      {isUploadGalleryOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setIsUploadGalleryOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white p-1">
-              <X className="w-5 h-5" />
-            </button>
-
-            <h3 className="text-xl font-black text-white mb-1">Unggah Foto Galeri</h3>
-            <p className="text-xs text-slate-400 mb-5">Bagikan foto mabar atau momen gathering bareng komunitas JST.</p>
-
-            <form onSubmit={handleGallerySubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">Pilih Gambar</label>
-                <div className="space-y-2">
-                  <div className="w-full h-36 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center overflow-hidden relative">
-                    {galleryPreview ? (
-                      <img src={galleryPreview} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <ImageIcon className="w-8 h-8 text-slate-600" />
-                    )}
-                  </div>
-                  <label className="cursor-pointer w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 flex items-center justify-center gap-2">
-                    <Upload className="w-4 h-4 text-purple-400" />
-                    <span>Pilih Foto dari Galeri HP/PC</span>
-                    <input type="file" accept="image/*" onChange={handleGalleryImageUpload} className="hidden" />
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Judul Momen</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Contoh: Mabar Roblox Survival Squad JST"
-                  value={galleryForm.title}
-                  onChange={(e) => setGalleryForm({ ...galleryForm, title: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:border-purple-500 focus:outline-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={!galleryPreview}
-                className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-extrabold text-xs shadow-lg shadow-purple-600/30 mt-2"
-              >
-                Publikasikan ke Galeri
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      <footer className="border-t border-slate-800/80 bg-slate-950 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-white text-xs">
-              JST
-            </div>
-            <div>
-              <p className="font-extrabold text-white text-sm">JST — Jawa Semua Teman</p>
-              <p className="text-[10px] text-slate-400">Komunitas Gaming, Nobar, & Nongkrong Indonesia</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6 text-xs text-slate-400">
-            <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white transition">Discord</a>
-            <a href="#about" className="hover:text-white transition">Tentang</a>
-            <a href="#events" className="hover:text-white transition">Event</a>
-            <a href="#games" className="hover:text-white transition">Game Hub</a>
-          </div>
-
-          <p className="text-[10px] text-slate-400">
-            © 2026 JST Community Platform. All rights reserved.
-          </p>
-        </div>
+      {/* Footer */}
+      <footer className="border-t border-slate-800/80 bg-slate-950 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center text-xs text-slate-500">
+        <p>© 2026 JST Community Platform. All rights reserved.</p>
       </footer>
+
     </div>
   );
 }
