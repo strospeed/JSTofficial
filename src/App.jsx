@@ -76,7 +76,7 @@ const INDONESIA_CITIES = [
   'Manado', 'Palembang', 'Lampung', 'Padang', 'Pekanbaru', 'Lainnya'
 ];
 
-// Koleksi Game Online Super Banyak (Tanpa Embel-embel)
+// Koleksi Game Online Web
 const ARCADE_GAMES = [
   { id: 'krunker', name: 'Krunker.io', category: 'Action / FPS', url: 'https://krunker.io/', banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80' },
   { id: 'shellshock', name: 'Shell Shockers', category: 'Action / Multiplayer', url: 'https://shellshock.io/', banner: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80' },
@@ -124,7 +124,7 @@ export default function App() {
   const [regAvatarPreview, setRegAvatarPreview] = useState(null);
   const [editProfileForm, setEditProfileForm] = useState({ username: '', city: '', favoriteGame: '', avatar: '' });
   
-  // Web Voice Chat States (Realtime Firebase Sync)
+  // Web Voice Chat States
   const [isInVoice, setIsInVoice] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [localStream, setLocalStream] = useState(null);
@@ -140,6 +140,7 @@ export default function App() {
     document.title = "JST Official - Jawa Semua Teman";
 
     signInAnonymously(auth).then(() => {
+      // Auto-Load Sesi User dari localStorage agar tidak diminta daftar ulang saat refresh
       const savedUserJson = localStorage.getItem('jst_current_user');
       if (savedUserJson) {
         try {
@@ -555,7 +556,7 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB: GAME LOUNGE (KOLEKSI SANGAT BANYAK) */}
+          {/* TAB: GAME LOUNGE */}
           {activeTab === 'gamelounge' && (
             <div className="space-y-8">
               <div>
