@@ -27,7 +27,8 @@ import {
   Flame,
   Gamepad,
   ExternalLink,
-  Settings
+  Settings,
+  LogOut
 } from 'lucide-react';
 
 // Import Firebase SDK
@@ -124,6 +125,10 @@ export default function App() {
   const [regAvatarPreview, setRegAvatarPreview] = useState(null);
   const [editProfileForm, setEditProfileForm] = useState({ username: '', city: '', favoriteGame: '', avatar: '' });
   
+  // Gallery Upload State
+  const [galleryForm, setGalleryForm] = useState({ title: '', tag: 'Gaming' });
+  const [galleryPreview, setGalleryPreview] = useState(null);
+
   // Web Voice Chat States
   const [isInVoice, setIsInVoice] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -140,7 +145,7 @@ export default function App() {
     document.title = "JST Official - Jawa Semua Teman";
 
     signInAnonymously(auth).then(() => {
-      // Auto-Load Sesi User dari localStorage agar tidak diminta daftar ulang saat refresh
+      // Auto-Load Sesi User dari localStorage
       const savedUserJson = localStorage.getItem('jst_current_user');
       if (savedUserJson) {
         try {
@@ -255,6 +260,11 @@ export default function App() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('jst_current_user');
+    setCurrentUser(null);
+  };
+
   const openProfileModal = () => {
     if (!currentUser) {
       setIsRegisterOpen(true);
@@ -299,11 +309,20 @@ export default function App() {
 
   const handleUploadGallery = async (e) => {
     e.preventDefault();
-    if (!galleryForm.title.trim() || !galleryForm.imgUrl) return;
-    const newItem = { ...galleryForm, id: Date.now(), uploader: currentUser?.username || 'Member' };
+    if (!galleryForm.title.trim() || !galleryPreview) return;
+    
+    const newItem = { 
+      title: galleryForm.title, 
+      tag: galleryForm.tag, 
+      imgUrl: galleryPreview, 
+      id: Date.now(), 
+      uploader: currentUser?.username || 'Member' 
+    };
+    
     await addDoc(collection(db, "gallery"), newItem);
     setIsUploadGalleryOpen(false);
-    setGalleryForm({ title: '', tag: 'Gaming', imgUrl: '' });
+    setGalleryForm({ title: '', tag: 'Gaming' });
+    setGalleryPreview(null);
   };
 
   const toggleVoiceRoom = async () => {
@@ -419,17 +438,23 @@ export default function App() {
           </div>
         </div>
 
+        {/* BAGIAN BAWAH SIDEBAR: JIKA SUDAH DAFTAR, TAMPILKAN INFO AKUN, JIKA BELUM TAMPILKAN TOMBOL DAFTAR */}
         <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
           {currentUser ? (
-            <div onClick={openProfileModal} className="bg-slate-950/90 p-3 rounded-2xl border border-slate-800 flex items-center justify-between shadow-inner cursor-pointer hover:border-indigo-500 transition">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <img src={currentUser.avatar} alt="Avatar" className="w-9 h-9 rounded-xl object-cover border border-indigo-500/40 shrink-0" />
-                <div className="overflow-hidden">
-                  <div className="text-xs font-bold text-white truncate">{currentUser.username}</div>
-                  <div className="text-[10px] text-indigo-400 font-medium">{currentUser.city} • Lv.{currentUser.level}</div>
+            <div className="bg-slate-950/90 p-3 rounded-2xl border border-slate-800 space-y-2.5 shadow-inner">
+              <div onClick={openProfileModal} className="flex items-center justify-between cursor-pointer hover:opacity-80 transition">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <img src={currentUser.avatar} alt="Avatar" className="w-9 h-9 rounded-xl object-cover border border-indigo-500/40 shrink-0" />
+                  <div className="overflow-hidden">
+                    <div className="text-xs font-bold text-white truncate">{currentUser.username}</div>
+                    <div className="text-[10px] text-indigo-400 font-medium">📍 {currentUser.city} • Lv.{currentUser.level}</div>
+                  </div>
                 </div>
+                <Settings className="w-4 h-4 text-slate-400 hover:text-white shrink-0" />
               </div>
-              <Settings className="w-4 h-4 text-slate-400 hover:text-white shrink-0" />
+              <button onClick={handleLogout} className="w-full py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 text-[10px] font-bold flex items-center justify-center gap-1.5 transition">
+                <LogOut className="w-3 h-3" /> Keluar Sesi
+              </button>
             </div>
           ) : (
             <button onClick={() => setIsRegisterOpen(true)} className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2">
@@ -456,7 +481,7 @@ export default function App() {
           <div className="flex items-center gap-3">
             {currentUser ? (
               <button onClick={openProfileModal} className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-2 transition">
-                <Settings className="w-3.5 h-3.5 text-indigo-400" /> Ganti Profil / Foto
+                <Settings className="w-3.5 h-3.5 text-indigo-400" /> Pengaturan Profil
               </button>
             ) : (
               <button onClick={() => setIsRegisterOpen(true)} className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg transition">
@@ -610,15 +635,17 @@ export default function App() {
                   <h2 className="text-2xl font-black text-white mb-1">👥 Direktori Member JST</h2>
                   <p className="text-xs text-slate-300">Daftar lengkap anggota komunitas dari berbagai daerah.</p>
                 </div>
-                <button onClick={() => setIsRegisterOpen(true)} className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition">
-                  + Daftar Profil Baru
-                </button>
+                {!currentUser && (
+                  <button onClick={() => setIsRegisterOpen(true)} className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition">
+                    + Daftar Profil Baru
+                  </button>
+                )}
               </div>
 
               {members.length === 0 ? (
                 <div className="text-center py-16 bg-slate-900/85 backdrop-blur-xl rounded-3xl border border-slate-800 shadow-xl">
                   <p className="text-xs text-slate-300 mb-3">Belum ada member terdaftar di database web.</p>
-                  <button onClick={() => setIsRegisterOpen(true)} className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs">Daftar Jadi Yang Pertama</button>
+                  {!currentUser && <button onClick={() => setIsRegisterOpen(true)} className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs">Daftar Jadi Yang Pertama</button>}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -710,6 +737,7 @@ export default function App() {
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 p-4 flex flex-col justify-end">
                       <div className="text-[10px] text-indigo-300 font-bold">{item.tag}</div>
                       <div className="text-xs font-bold text-white">{item.title}</div>
+                      <div className="text-[9px] text-slate-400 mt-0.5">Oleh: {item.uploader}</div>
                     </div>
                   </div>
                 ))}
@@ -907,16 +935,52 @@ export default function App() {
         </div>
       )}
 
-      {/* UPLOAD GALLERY MODAL */}
+      {/* UPLOAD GALLERY MODAL (CHOOSE FILE) */}
       {isUploadGalleryOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative shadow-2xl">
             <button onClick={() => setIsUploadGalleryOpen(false)} className="absolute top-4 right-4 text-slate-400"><X className="w-5 h-5" /></button>
             <h3 className="text-xl font-black text-white mb-4">Upload Foto Momen</h3>
+            
             <form onSubmit={handleUploadGallery} className="space-y-4">
-              <input type="text" required placeholder="Judul Momen" value={galleryForm.title} onChange={e => setGalleryForm({...galleryForm, title: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white" />
-              <input type="text" required placeholder="URL Gambar / Foto" value={galleryForm.imgUrl} onChange={e => setGalleryForm({...galleryForm, imgUrl: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white" />
-              <button type="submit" className="w-full py-3 rounded-xl bg-purple-600 text-white font-bold text-xs">Posting ke Galeri</button>
+              <input 
+                type="text" 
+                required 
+                placeholder="Judul Momen" 
+                value={galleryForm.title} 
+                onChange={e => setGalleryForm({...galleryForm, title: e.target.value})} 
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white" 
+              />
+              
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-400">Pilih Foto dari Perangkat:</label>
+                <div className="flex items-center gap-3">
+                   <label className="cursor-pointer w-full py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white flex items-center justify-center gap-2 border border-slate-700">
+                     <ImageIcon className="w-4 h-4 text-indigo-400" /> 
+                     {galleryPreview ? 'Foto Terpilih (Ganti)' : 'Pilih File Gambar'}
+                     <input 
+                       type="file" 
+                       accept="image/*" 
+                       className="hidden" 
+                       onChange={(e) => {
+                         const file = e.target.files[0];
+                         if (file) {
+                           const reader = new FileReader();
+                           reader.onloadend = () => setGalleryPreview(reader.result);
+                           reader.readAsDataURL(file);
+                         }
+                       }}
+                     />
+                   </label>
+                </div>
+                {galleryPreview && (
+                  <img src={galleryPreview} alt="Preview" className="w-full h-32 object-cover rounded-xl mt-2 border border-slate-700" />
+                )}
+              </div>
+
+              <button type="submit" className="w-full py-3 rounded-xl bg-purple-600 text-white font-bold text-xs">
+                Posting ke Galeri
+              </button>
             </form>
           </div>
         </div>
