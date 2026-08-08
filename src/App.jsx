@@ -111,11 +111,11 @@ export default function App() {
   const [regAvatarPreview, setRegAvatarPreview] = useState(null);
   const [editProfileForm, setEditProfileForm] = useState({ username: '', city: '', favoriteGame: '', avatar: '' });
   
-  // Web Voice Chat States
+  // Web Voice Chat States (Realtime Firebase Sync)
   const [isInVoice, setIsInVoice] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [localStream, setLocalStream] = useState(null);
-  const audioRef = useRef(null);
+  const [voiceUsers, setVoiceUsers] = useState([]);
 
   useEffect(() => {
     // Set Favicon Logo di Tab Browser
@@ -126,7 +126,17 @@ export default function App() {
     document.getElementsByTagName('head')[0].appendChild(link);
     document.title = "JST Official - Jawa Semua Teman";
 
-    signInAnonymously(auth).catch((err) => console.error("Auth error:", err));
+    signInAnonymously(auth).then(() => {
+      // Cek apakah data user tersimpan di localStorage agar tidak diminta daftar ulang
+      const savedUserJson = localStorage.getItem('jst_current_user');
+      if (savedUserJson) {
+        try {
+          setCurrentUser(JSON.parse(savedUserJson));
+        } catch (e) {
+          console.log(e);
+        }
+      }
+    }).catch((err) => console.error("Auth error:", err));
 
     // Firestore Sync
     const unsubMembers = onSnapshot(collection(db, "members"), (snapshot) => {
@@ -143,11 +153,17 @@ export default function App() {
       setMessages(snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })));
     });
 
+    // Voice Room Sync Realtime
+    const unsubVoice = onSnapshot(collection(db, "voice_room"), (snapshot) => {
+      setVoiceUsers(snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })));
+    });
+
     return () => {
       unsubMembers();
       unsubEvents();
       unsubGallery();
       unsubChat();
+      unsubVoice();
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
       }
@@ -193,7 +209,9 @@ export default function App() {
 
     try {
       const docRef = await addDoc(collection(db, "members"), newMember);
-      setCurrentUser({ docId: docRef.id, ...newMember });
+      const userWithId = { docId: docRef.id, ...newMember };
+      setCurrentUser(userWithId);
+      localStorage.setItem('jst_current_user', JSON.stringify(userWithId));
       setIsRegisterOpen(false);
       setRegForm({ username: '', city: 'Blitar', favoriteGame: 'Roblox', discordTag: '' });
       setRegAvatarPreview(null);
@@ -216,7 +234,9 @@ export default function App() {
       };
 
       await updateDoc(userRef, updatedData);
-      setCurrentUser({ ...currentUser, ...updatedData });
+      const newUserObj = { ...currentUser, ...updatedData };
+      setCurrentUser(newUserObj);
+      localStorage.setItem('jst_current_user', JSON.stringify(newUserObj));
       setIsProfileOpen(false);
     } catch (err) {
       console.error("Gagal update profil:", err);
@@ -274,23 +294,52 @@ export default function App() {
     setGalleryForm({ title: '', tag: 'Gaming', imgUrl: '' });
   };
 
-  // Web Voice Chat Handlers
+  // Web Voice Chat Handlers dengan Firebase Sync
   const toggleVoiceRoom = async () => {
+    if (!currentUser) {
+      setIsRegisterOpen(true);
+      return;
+    }
+
     if (!isInVoice) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         setLocalStream(stream);
         setIsInVoice(true);
         setIsMuted(false);
+
+        // Catat ke database bahwa user masuk voice room
+        await addDoc(collection(db, "voice_room"), {
+          userId: currentUser.id || currentUser.docId,
+          username: currentUser.username,
+          avatar: currentUser.avatar,
+          city: currentUser.city,
+          isMuted: false,
+          joinedAt: Date.now()
+        });
       } catch (err) {
         alert("Gagal mengakses Mikrofon. Pastikan Anda mengizinkan akses mic pada browser.");
       }
     } else {
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
+      leaveVoiceRoom();
+    }
+  };
+
+  const leaveVoiceRoom = async () => {
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+    }
+    setLocalStream(null);
+    setIsInVoice(false);
+
+    // Hapus dari daftar voice room firebase
+    const myVoiceData = voiceUsers.find(v => v.username === currentUser?.username);
+    if (myVoiceData) {
+      try {
+        await updateDoc(doc(db, "voice_room", myVoiceData.docId), { left: true }); // Atau hapus dokumen jika ingin
+      } catch (e) {
+        console.log(e);
       }
-      setLocalStream(null);
-      setIsInVoice(false);
     }
   };
 
@@ -396,9 +445,13 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            {currentUser && (
+            {currentUser ? (
               <button onClick={openProfileModal} className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-2 transition">
                 <Settings className="w-3.5 h-3.5 text-indigo-400" /> Ganti Profil / Foto
+              </button>
+            ) : (
+              <button onClick={() => setIsRegisterOpen(true)} className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg transition">
+                <UserCheck className="w-4 h-4" /><span>Daftar Member</span>
               </button>
             )}
             <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-bold flex items-center gap-2 shadow-lg transition">
@@ -446,7 +499,7 @@ export default function App() {
                   </p>
                 </div>
 
-                <div className="flex flex-wrap justify-center gap-4 pt-4">
+                <div className="flex flex-wrap justify-center gap-4 pt-2">
                   {!isInVoice ? (
                     <button onClick={toggleVoiceRoom} className="px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-xl shadow-emerald-600/30 flex items-center gap-3 transition">
                       <Mic className="w-5 h-5" /> Masuk Voice Room
@@ -464,12 +517,32 @@ export default function App() {
                   )}
                 </div>
 
-                {isInVoice && (
-                  <div className="p-4 bg-slate-950/80 rounded-2xl border border-emerald-500/30 inline-flex items-center gap-3 mt-4">
-                    <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
-                    <span className="text-xs font-bold text-emerald-300">Status: Terhubung & Aktif Menggunakan Web Audio</span>
-                  </div>
-                )}
+                {/* DAFTAR MEMBER DI DALAM VOICE ROOM */}
+                <div className="mt-8 pt-6 border-t border-slate-800 text-left">
+                  <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-emerald-400" /> Member yang sedang di Voice Room ({voiceUsers.length})
+                  </h3>
+                  {voiceUsers.length === 0 ? (
+                    <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 text-center text-xs text-slate-400">
+                      Belum ada member di dalam room. Jadilah yang pertama masuk!
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {voiceUsers.map((vUser) => (
+                        <div key={vUser.docId} className="bg-slate-950/80 p-3 rounded-2xl border border-slate-800 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <img src={vUser.avatar} alt="Avatar" className="w-9 h-9 rounded-xl object-cover border border-emerald-500/40" />
+                            <div>
+                              <div className="text-xs font-bold text-white">{vUser.username}</div>
+                              <div className="text-[10px] text-emerald-400 font-medium">📍 {vUser.city} • Berbicara</div>
+                            </div>
+                          </div>
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
