@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
   Radio,
@@ -18,12 +18,16 @@ import {
   UserCheck,
   Film,
   Volume2,
+  VolumeX,
+  Mic,
+  MicOff,
   MessageSquare,
   Send,
   Home,
   Flame,
   Gamepad,
-  ExternalLink
+  ExternalLink,
+  Settings
 } from 'lucide-react';
 
 // Import Firebase SDK
@@ -61,10 +65,8 @@ const auth = getAuth(app);
 const LOGO_URL = "https://cdn.phototourl.com/free/2026-08-08-cc31cf77-f33d-4f92-acfd-9931efb5991a.png";
 const BG_URL = "https://cdn.phototourl.com/free/2026-08-08-1526704e-be05-41e9-800a-fe7acac48963.png";
 
-const DISCORD_SERVER_ID = 'MASUKKAN_SERVER_ID_ANDA'; // Ganti dengan Server ID Discord Anda
 const DISCORD_INVITE_URL = `https://discord.gg/4GzW6KTAyZ`;
 
-// Daftar Kota & Kabupaten Super Lengkap (Termasuk Blitar)
 const INDONESIA_CITIES = [
   'Blitar', 'Kediri', 'Malang', 'Surabaya', 'Jogja', 'Solo', 'Semarang', 
   'Jakarta', 'Bandung', 'Medan', 'Makassar', 'Bali', 'Banten', 'Bogor', 
@@ -74,18 +76,6 @@ const INDONESIA_CITIES = [
   'Manado', 'Palembang', 'Lampung', 'Padang', 'Pekanbaru', 'Lainnya'
 ];
 
-const GAMES_LIST = [
-  { id: 'roblox', name: 'Roblox', category: 'Sandbox & Party', activeCount: '25+ Squad', rating: '4.9', icon: '🟥', banner: 'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?auto=format&fit=crop&w=800&q=80' },
-  { id: 'valorant', name: 'Valorant', category: 'Tactical FPS', activeCount: '18+ Squad', rating: '4.8', icon: '🎯', banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80' },
-  { id: 'mlbb', name: 'Mobile Legends', category: 'Mobile MOBA', activeCount: '30+ Squad', rating: '4.9', icon: '⚔️', banner: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=800&q=80' },
-  { id: 'pubg', name: 'PUBG Mobile', category: 'Battle Royale', activeCount: '12+ Squad', rating: '4.7', icon: '🪂', banner: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80' },
-  { id: 'minecraft', name: 'Minecraft JST Server', category: 'Survival & Craft', activeCount: '15+ Online', rating: '4.9', icon: '⛏️', banner: 'https://images.unsplash.com/photo-1627856013091-fed6e4e30025?auto=format&fit=crop&w=800&q=80' },
-  { id: 'cs2', name: 'Counter Strike 2', category: 'Competitive FPS', activeCount: '10+ Squad', rating: '4.8', icon: '💣', banner: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80' },
-  { id: 'gta5', name: 'GTA V / FiveM', category: 'Roleplay & Action', activeCount: '14+ Squad', rating: '4.8', icon: '🚗', banner: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80' },
-  { id: 'dota2', name: 'Dota 2', category: 'Strategy MOBA', activeCount: '8+ Squad', rating: '4.7', icon: '🛡️', banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80' }
-];
-
-// Koleksi Game CrazyGames / Web Games yang Diperbanyak (Langsung Main)
 const ARCADE_GAMES = [
   { id: 'krunker', name: 'Krunker.io (FPS Multiplayer)', category: 'Action / FPS', url: 'https://krunker.io/', banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80' },
   { id: 'shellshock', name: 'Shell Shockers (FPS Telur)', category: 'Action / Multiplayer', url: 'https://shellshock.io/', banner: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80' },
@@ -108,27 +98,24 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
 
-  // Discord Live API States
-  const [discordData, setDiscordData] = useState({
-    name: 'JST (Jawa Semua Teman)',
-    presence_count: 0,
-    members: [],
-    channels: [],
-    instant_invite: DISCORD_INVITE_URL
-  });
   const [selectedGameUrl, setSelectedGameUrl] = useState(null);
 
   // Modals
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
   const [isUploadGalleryOpen, setIsUploadGalleryOpen] = useState(false);
 
-  // Form States
+  // Form & Profile States
   const [regForm, setRegForm] = useState({ username: '', city: 'Blitar', favoriteGame: 'Roblox', discordTag: '' });
   const [regAvatarPreview, setRegAvatarPreview] = useState(null);
-  const [eventForm, setEventForm] = useState({ title: '', category: 'Gaming', gameType: 'Roblox', date: '', time: '', prize: '', maxSlots: 10, description: '' });
-  const [galleryForm, setGalleryForm] = useState({ title: '', tag: 'Gaming', imgUrl: '' });
-  const [galleryPreview, setGalleryPreview] = useState(null);
+  const [editProfileForm, setEditProfileForm] = useState({ username: '', city: '', favoriteGame: '', avatar: '' });
+  
+  // Web Voice Chat States
+  const [isInVoice, setIsInVoice] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [localStream, setLocalStream] = useState(null);
+  const audioRef = useRef(null);
 
   useEffect(() => {
     // Set Favicon Logo di Tab Browser
@@ -156,35 +143,31 @@ export default function App() {
       setMessages(snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })));
     });
 
-    fetchDiscordRealtimeData();
-    const interval = setInterval(fetchDiscordRealtimeData, 10000);
-
     return () => {
       unsubMembers();
       unsubEvents();
       unsubGallery();
       unsubChat();
-      clearInterval(interval);
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
     };
   }, []);
-
-  const fetchDiscordRealtimeData = async () => {
-    try {
-      const res = await fetch(`https://discord.com/api/guilds/${DISCORD_SERVER_ID}/widget.json`);
-      if (res.ok) {
-        const data = await res.json();
-        setDiscordData(data);
-      }
-    } catch (e) {
-      console.log('Gagal mengambil data Discord widget.');
-    }
-  };
 
   const handleAvatarUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => setRegAvatarPreview(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleEditAvatarUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setEditProfileForm({ ...editProfileForm, avatar: reader.result });
       reader.readAsDataURL(file);
     }
   };
@@ -209,13 +192,48 @@ export default function App() {
     };
 
     try {
-      await addDoc(collection(db, "members"), newMember);
-      setCurrentUser(newMember);
+      const docRef = await addDoc(collection(db, "members"), newMember);
+      setCurrentUser({ docId: docRef.id, ...newMember });
       setIsRegisterOpen(false);
       setRegForm({ username: '', city: 'Blitar', favoriteGame: 'Roblox', discordTag: '' });
       setRegAvatarPreview(null);
     } catch (err) {
       console.error("Gagal mendaftar:", err);
+    }
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    try {
+      const userRef = doc(db, "members", currentUser.docId);
+      const updatedData = {
+        username: editProfileForm.username || currentUser.username,
+        city: editProfileForm.city || currentUser.city,
+        favoriteGame: editProfileForm.favoriteGame || currentUser.favoriteGame,
+        avatar: editProfileForm.avatar || currentUser.avatar
+      };
+
+      await updateDoc(userRef, updatedData);
+      setCurrentUser({ ...currentUser, ...updatedData });
+      setIsProfileOpen(false);
+    } catch (err) {
+      console.error("Gagal update profil:", err);
+    }
+  };
+
+  const openProfileModal = () => {
+    if (!currentUser) {
+      setIsRegisterOpen(true);
+    } else {
+      setEditProfileForm({
+        username: currentUser.username,
+        city: currentUser.city,
+        favoriteGame: currentUser.favoriteGame,
+        avatar: currentUser.avatar
+      });
+      setIsProfileOpen(true);
     }
   };
 
@@ -254,7 +272,35 @@ export default function App() {
     await addDoc(collection(db, "gallery"), newItem);
     setIsUploadGalleryOpen(false);
     setGalleryForm({ title: '', tag: 'Gaming', imgUrl: '' });
-    setGalleryPreview(null);
+  };
+
+  // Web Voice Chat Handlers
+  const toggleVoiceRoom = async () => {
+    if (!isInVoice) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        setLocalStream(stream);
+        setIsInVoice(true);
+        setIsMuted(false);
+      } catch (err) {
+        alert("Gagal mengakses Mikrofon. Pastikan Anda mengizinkan akses mic pada browser.");
+      }
+    } else {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+      setLocalStream(null);
+      setIsInVoice(false);
+    }
+  };
+
+  const toggleMute = () => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(track => {
+        track.enabled = !track.enabled;
+      });
+      setIsMuted(!isMuted);
+    }
   };
 
   const sortedMembers = [...members].sort((a, b) => b.xp - a.xp);
@@ -262,13 +308,12 @@ export default function App() {
   return (
     <div className="min-h-screen text-slate-100 font-sans flex relative overflow-x-hidden bg-slate-950">
       
-      {/* Background Gambar Website dengan Efek Balance (Overlay Gelap Transparan agar Teks Tetap Jelas Dibaca) */}
+      {/* Background Gambar Website dengan Efek Balance */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div 
           className="absolute inset-0 bg-cover bg-center filter brightness-[0.35] blur-[2px] scale-105"
           style={{ backgroundImage: `url(${BG_URL})` }}
         />
-        {/* Layer Gradien Gelap Tambahan untuk Menjaga Kontras Teks */}
         <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[1px]" />
       </div>
 
@@ -295,8 +340,8 @@ export default function App() {
             <button onClick={() => { setActiveTab('chat'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition ${activeTab === 'chat' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'}`}>
               <MessageSquare className="w-4 h-4" /><span>💬 Live Chat Global</span>
             </button>
-            <button onClick={() => { setActiveTab('discord-live'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition ${activeTab === 'discord-live' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'}`}>
-              <Volume2 className="w-4 h-4 text-emerald-400" /><span>🔴 Live Discord Voice & Members</span>
+            <button onClick={() => { setActiveTab('webvoice'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition ${activeTab === 'webvoice' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'}`}>
+              <Volume2 className="w-4 h-4 text-emerald-400" /><span>🎙️ JST Web Voice Room</span>
             </button>
             <button onClick={() => { setActiveTab('gamelounge'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition ${activeTab === 'gamelounge' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'}`}>
               <Gamepad className="w-4 h-4" /><span>🕹️ JST Game Lounge (CrazyGames)</span>
@@ -318,12 +363,15 @@ export default function App() {
 
         <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
           {currentUser ? (
-            <div className="bg-slate-950/90 p-3 rounded-2xl border border-slate-800 flex items-center gap-3 shadow-inner">
-              <img src={currentUser.avatar} alt="Avatar" className="w-9 h-9 rounded-xl object-cover border border-indigo-500/40" />
-              <div className="overflow-hidden">
-                <div className="text-xs font-bold text-white truncate">{currentUser.username}</div>
-                <div className="text-[10px] text-indigo-400 font-medium">{currentUser.city} • Lv.{currentUser.level}</div>
+            <div onClick={openProfileModal} className="bg-slate-950/90 p-3 rounded-2xl border border-slate-800 flex items-center justify-between shadow-inner cursor-pointer hover:border-indigo-500 transition">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <img src={currentUser.avatar} alt="Avatar" className="w-9 h-9 rounded-xl object-cover border border-indigo-500/40 shrink-0" />
+                <div className="overflow-hidden">
+                  <div className="text-xs font-bold text-white truncate">{currentUser.username}</div>
+                  <div className="text-[10px] text-indigo-400 font-medium">{currentUser.city} • Lv.{currentUser.level}</div>
+                </div>
               </div>
+              <Settings className="w-4 h-4 text-slate-400 hover:text-white shrink-0" />
             </div>
           ) : (
             <button onClick={() => setIsRegisterOpen(true)} className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-xs shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2">
@@ -343,13 +391,18 @@ export default function App() {
             </button>
             <div className="text-xs sm:text-sm font-bold text-slate-200 flex items-center gap-2 bg-slate-900/60 px-3.5 py-1.5 rounded-full border border-slate-800">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-              <span>{discordData.presence_count} Member Online di Discord</span>
+              <span>{members.length} Member Terdaftar</span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <a href={discordData.instant_invite} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-bold flex items-center gap-2 shadow-lg transition">
-              <Radio className="w-4 h-4" /><span>Gabung Discord</span>
+            {currentUser && (
+              <button onClick={openProfileModal} className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-2 transition">
+                <Settings className="w-3.5 h-3.5 text-indigo-400" /> Ganti Profil / Foto
+              </button>
+            )}
+            <a href={DISCORD_INVITE_URL} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-bold flex items-center gap-2 shadow-lg transition">
+              <Radio className="w-4 h-4" /><span>Discord Komunitas</span>
             </a>
           </div>
         </header>
@@ -365,67 +418,58 @@ export default function App() {
                   Komunitas <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-300">JST Official</span>
                 </h1>
                 <p className="text-slate-300 text-sm sm:text-lg max-w-2xl mx-auto mb-8 font-medium">
-                  Jawa Semua Teman — Terhubung secara realtime dengan Discord server, direktori member lengkap dengan foto profil dari berbagai daerah seperti Blitar, Surabaya, Malang, dan mainkan game online seru sepuasnya.
+                  Jawa Semua Teman — Ngobrol langsung lewat Web Voice Room, mainkan game online sepuasnya, dan atur profil kerenmu dengan foto pilihanmu sendiri.
                 </p>
                 <div className="flex flex-wrap justify-center gap-4">
+                  <button onClick={() => setActiveTab('webvoice')} className="px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-600/30 transition flex items-center gap-2">
+                    <Volume2 className="w-4 h-4" /> Masuk Web Voice Room
+                  </button>
                   <button onClick={() => setActiveTab('gamelounge')} className="px-6 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 transition">
                     🕹️ Main Game CrazyGames Sekarang
-                  </button>
-                  <button onClick={() => setActiveTab('discord-live')} className="px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-600/30 transition">
-                    🔴 Cek Live Discord Voice
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB: LIVE DISCORD */}
-          {activeTab === 'discord-live' && (
-            <div className="space-y-8">
-              <div>
-                <h2 className="text-2xl font-black text-white mb-2">🔴 Live Server Discord</h2>
-                <p className="text-xs text-slate-300">Data ini diambil secara langsung dan realtime dari server Discord Anda.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-slate-900/85 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl">
-                  <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                    <Volume2 className="w-5 h-5 text-indigo-400" /> Daftar Voice Channel Aktif
-                  </h3>
-                  <div className="space-y-3">
-                    {discordData.channels && discordData.channels.length > 0 ? (
-                      discordData.channels.map((channel) => (
-                        <div key={channel.id} className="bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800 flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-200">🔊 {channel.name}</span>
-                          <span className="px-2.5 py-1 rounded-xl bg-indigo-500/20 text-indigo-300 text-[10px] font-bold">Channel Aktif</span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-slate-400">Tidak ada data channel atau widget belum diaktifkan di server Discord.</p>
-                    )}
-                  </div>
+          {/* TAB: WEB VOICE ROOM */}
+          {activeTab === 'webvoice' && (
+            <div className="space-y-8 max-w-4xl mx-auto">
+              <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl text-center space-y-6">
+                <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto shadow-inner">
+                  <Volume2 className={`w-10 h-10 ${isInVoice ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}`} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-white mb-2">🎙️ JST Web Voice Room</h2>
+                  <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto">
+                    {isInVoice ? 'Anda terhubung ke ruang suara web. Silakan mulai berbicara dengan member lain.' : 'Klik tombol di bawah untuk bergabung ke ruang suara interaktif langsung di browser.'}
+                  </p>
                 </div>
 
-                <div className="bg-slate-900/85 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-xl">
-                  <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
-                    <Users className="w-5 h-5 text-emerald-400" /> Member Online di Discord ({discordData.presence_count})
-                  </h3>
-                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                    {discordData.members && discordData.members.length > 0 ? (
-                      discordData.members.map((m, idx) => (
-                        <div key={idx} className="bg-slate-950/80 p-3 rounded-2xl border border-slate-800 flex items-center gap-3">
-                          <img src={m.avatar_url} alt="Avatar" className="w-8 h-8 rounded-xl object-cover" />
-                          <div>
-                            <div className="text-xs font-bold text-white">{m.username}</div>
-                            <div className="text-[10px] text-emerald-400 font-semibold">● Online</div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-slate-400">Belum ada member online yang terdeteksi widget.</p>
-                    )}
-                  </div>
+                <div className="flex flex-wrap justify-center gap-4 pt-4">
+                  {!isInVoice ? (
+                    <button onClick={toggleVoiceRoom} className="px-8 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm shadow-xl shadow-emerald-600/30 flex items-center gap-3 transition">
+                      <Mic className="w-5 h-5" /> Masuk Voice Room
+                    </button>
+                  ) : (
+                    <>
+                      <button onClick={toggleMute} className={`px-6 py-3.5 rounded-2xl font-extrabold text-xs shadow-lg flex items-center gap-2 transition ${isMuted ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-200 border border-slate-700'}`}>
+                        {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                        {isMuted ? 'Unmute Mic' : 'Mute Mic'}
+                      </button>
+                      <button onClick={toggleVoiceRoom} className="px-6 py-3.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs shadow-lg flex items-center gap-2 transition">
+                        <VolumeX className="w-4 h-4" /> Keluar Room
+                      </button>
+                    </>
+                  )}
                 </div>
+
+                {isInVoice && (
+                  <div className="p-4 bg-slate-950/80 rounded-2xl border border-emerald-500/30 inline-flex items-center gap-3 mt-4">
+                    <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
+                    <span className="text-xs font-bold text-emerald-300">Status: Terhubung & Aktif Menggunakan Web Audio</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -485,7 +529,7 @@ export default function App() {
                   <p className="text-xs text-slate-300">Daftar lengkap anggota komunitas dari berbagai daerah.</p>
                 </div>
                 <button onClick={() => setIsRegisterOpen(true)} className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition">
-                  + Daftar / Edit Profil
+                  + Daftar Profil Baru
                 </button>
               </div>
 
@@ -580,7 +624,7 @@ export default function App() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                 {galleryItems.map((item) => (
                   <div key={item.docId || item.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden h-56 relative group shadow-xl">
-                    <img src={item.img} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
+                    <img src={item.imgUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950 p-4 flex flex-col justify-end">
                       <div className="text-[10px] text-indigo-300 font-bold">{item.tag}</div>
                       <div className="text-xs font-bold text-white">{item.title}</div>
@@ -691,6 +735,74 @@ export default function App() {
 
               <button type="submit" className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-xs shadow-lg mt-2">
                 Selesaikan Pendaftaran
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= EDIT PROFILE / GANTI FOTO MODAL ================= */}
+      {isProfileOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto shadow-2xl">
+            <button onClick={() => setIsProfileOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
+            <h3 className="text-xl font-black text-white mb-1">Pengaturan Profil & Foto</h3>
+            <p className="text-xs text-slate-400 mb-5">Ganti foto profil web atau informasi akun Anda.</p>
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Ganti Foto Profil Web</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden flex items-center justify-center">
+                    <img src={editProfileForm.avatar} alt="Avatar Preview" className="w-full h-full object-cover" />
+                  </div>
+                  <label className="cursor-pointer flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 flex items-center justify-center gap-2">
+                    <Upload className="w-4 h-4 text-indigo-400" /><span>Upload Foto Baru</span>
+                    <input type="file" accept="image/*" onChange={handleEditAvatarUpload} className="hidden" />
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Username / Gamertag</label>
+                <input
+                  type="text"
+                  required
+                  value={editProfileForm.username}
+                  onChange={(e) => setEditProfileForm({ ...editProfileForm, username: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Asal Kota / Kabupaten</label>
+                <select
+                  value={editProfileForm.city}
+                  onChange={(e) => setEditProfileForm({ ...editProfileForm, city: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none"
+                >
+                  {INDONESIA_CITIES.map((cityName) => (
+                    <option key={cityName} value={cityName}>{cityName}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Game Utamamu</label>
+                <select
+                  value={editProfileForm.favoriteGame}
+                  onChange={(e) => setEditProfileForm({ ...editProfileForm, favoriteGame: e.target.value })}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none"
+                >
+                  <option value="Roblox">Roblox</option>
+                  <option value="Valorant">Valorant</option>
+                  <option value="Mobile Legends">Mobile Legends</option>
+                  <option value="Minecraft">Minecraft</option>
+                </select>
+              </div>
+
+              <button type="submit" className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-xs shadow-lg mt-2">
+                Simpan Perubahan Profil
               </button>
             </form>
           </div>
