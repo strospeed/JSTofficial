@@ -106,7 +106,17 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [members, setMembers] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
+  
+  // PERBAIKAN UTAMA: Langsung baca localStorage saat inisialisasi state agar tidak null saat pertama render/refresh
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('jst_current_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
   const [events, setEvents] = useState([]);
   const [galleryItems, setGalleryItems] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -144,17 +154,7 @@ export default function App() {
     document.getElementsByTagName('head')[0].appendChild(link);
     document.title = "JST Official - Jawa Semua Teman";
 
-    signInAnonymously(auth).then(() => {
-      // Auto-Load Sesi User dari localStorage
-      const savedUserJson = localStorage.getItem('jst_current_user');
-      if (savedUserJson) {
-        try {
-          setCurrentUser(JSON.parse(savedUserJson));
-        } catch (e) {
-          console.log(e);
-        }
-      }
-    }).catch((err) => console.error("Auth error:", err));
+    signInAnonymously(auth).catch((err) => console.error("Auth error:", err));
 
     // Firestore Sync
     const unsubMembers = onSnapshot(collection(db, "members"), (snapshot) => {
