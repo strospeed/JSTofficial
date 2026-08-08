@@ -76,15 +76,28 @@ const INDONESIA_CITIES = [
   'Manado', 'Palembang', 'Lampung', 'Padang', 'Pekanbaru', 'Lainnya'
 ];
 
+// Koleksi Game Online Super Banyak (Langsung Main)
 const ARCADE_GAMES = [
-  { id: 'krunker', name: 'Krunker.io (FPS Multiplayer)', category: 'Action / FPS', url: 'https://krunker.io/', banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80' },
-  { id: 'shellshock', name: 'Shell Shockers (FPS Telur)', category: 'Action / Multiplayer', url: 'https://shellshock.io/', banner: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80' },
+  { id: 'krunker', name: 'Krunker.io', category: 'Action / FPS', url: 'https://krunker.io/', banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80' },
+  { id: 'shellshock', name: 'Shell Shockers', category: 'Action / Multiplayer', url: 'https://shellshock.io/', banner: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80' },
   { id: 'paperio', name: 'Paper.io 2', category: 'Strategy / IO', url: 'https://paper.io/', banner: 'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?auto=format&fit=crop&w=600&q=80' },
-  { id: 'smashkarts', name: 'Smash Karts (Battle Kart)', category: 'Racing / Multiplayer', url: 'https://smashkarts.io/', banner: 'https://images.unsplash.com/photo-1511871893393-82e4c166a988?auto=format&fit=crop&w=600&q=80' },
+  { id: 'smashkarts', name: 'Smash Karts', category: 'Racing / Multiplayer', url: 'https://smashkarts.io/', banner: 'https://images.unsplash.com/photo-1511871893393-82e4c166a988?auto=format&fit=crop&w=600&q=80' },
   { id: 'chess', name: 'Chess Online', category: 'Board / Strategy', url: 'https://www.chess.com/play/computer', banner: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=600&q=80' },
-  { id: 'slope', name: 'Slope Game (Ball Run)', category: 'Arcade / Skill', url: 'https://www.crazygames.com/game/slope', banner: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80' },
-  { id: 'moto', name: 'Moto X3M (Bike Stunt)', category: 'Racing / Sports', url: 'https://www.crazygames.com/game/moto-x3m', banner: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80' },
-  { id: 'voxiom', name: 'Voxiom.io (Voxel Battle Royale)', category: 'Action / Survival', url: 'https://voxiom.io/', banner: 'https://images.unsplash.com/photo-1627856013091-fed6e4e30025?auto=format&fit=crop&w=600&q=80' }
+  { id: 'slope', name: 'Slope Game', category: 'Arcade / Skill', url: 'https://www.crazygames.com/game/slope', banner: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80' },
+  { id: 'moto', name: 'Moto X3M', category: 'Racing / Sports', url: 'https://www.crazygames.com/game/moto-x3m', banner: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80' },
+  { id: 'voxiom', name: 'Voxiom.io', category: 'Action / Survival', url: 'https://voxiom.io/', banner: 'https://images.unsplash.com/photo-1627856013091-fed6e4e30025?auto=format&fit=crop&w=600&q=80' },
+  { id: 'holeio', name: 'Hole.io', category: 'Arcade / IO', url: 'https://hole-io.com/', banner: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80' },
+  { id: 'stabfish', name: 'Stabfish.io', category: 'Action / Survival', url: 'https://stabfish.io/', banner: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=600&q=80' },
+  { id: 'buildroyale', name: 'Build Royale', category: 'Battle Royale', url: 'https://buildroyale.io/', banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80' },
+  { id: 'zombs', name: 'Zombs Royale', category: 'Battle Royale', url: 'https://zombsroyale.io/', banner: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80' },
+  { id: 'wormate', name: 'Wormate.io', category: 'Arcade / IO', url: 'https://wormate.io/', banner: 'https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?auto=format&fit=crop&w=600&q=80' },
+  { id: 'slither', name: 'Slither.io', category: 'Arcade / IO', url: 'https://slither.io/', banner: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80' },
+  { id: 'agar', name: 'Agar.io', category: 'Strategy / IO', url: 'https://agar.io/', banner: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=600&q=80' },
+  { id: 'tanki', name: 'Tanki Online', category: 'Action / Tank', url: 'https://tankionline.com/en/', banner: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80' },
+  { id: 'bloxd', name: 'Bloxd.io', category: 'Sandbox / Craft', url: 'https://bloxd.io/', banner: 'https://images.unsplash.com/photo-1627856013091-fed6e4e30025?auto=format&fit=crop&w=600&q=80' },
+  { id: 'diep', name: 'Diep.io', category: 'Action / IO', url: 'https://diep.io/', banner: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80' },
+  { id: 'narrow', name: 'Narrow One', category: 'Action / Archery', url: 'https://www.crazygames.com/game/narrow-one', banner: 'https://images.unsplash.com/photo-1511871893393-82e4c166a988?auto=format&fit=crop&w=600&q=80' },
+  { id: 'bullet', name: 'Bullet Force', category: 'FPS / Multiplayer', url: 'https://www.crazygames.com/game/bullet-force', banner: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80' }
 ];
 
 export default function App() {
@@ -127,7 +140,6 @@ export default function App() {
     document.title = "JST Official - Jawa Semua Teman";
 
     signInAnonymously(auth).then(() => {
-      // Cek apakah data user tersimpan di localStorage agar tidak diminta daftar ulang
       const savedUserJson = localStorage.getItem('jst_current_user');
       if (savedUserJson) {
         try {
@@ -153,7 +165,6 @@ export default function App() {
       setMessages(snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })));
     });
 
-    // Voice Room Sync Realtime
     const unsubVoice = onSnapshot(collection(db, "voice_room"), (snapshot) => {
       setVoiceUsers(snapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() })));
     });
@@ -294,7 +305,6 @@ export default function App() {
     setGalleryForm({ title: '', tag: 'Gaming', imgUrl: '' });
   };
 
-  // Web Voice Chat Handlers dengan Firebase Sync
   const toggleVoiceRoom = async () => {
     if (!currentUser) {
       setIsRegisterOpen(true);
@@ -308,7 +318,6 @@ export default function App() {
         setIsInVoice(true);
         setIsMuted(false);
 
-        // Catat ke database bahwa user masuk voice room
         await addDoc(collection(db, "voice_room"), {
           userId: currentUser.id || currentUser.docId,
           username: currentUser.username,
@@ -332,11 +341,10 @@ export default function App() {
     setLocalStream(null);
     setIsInVoice(false);
 
-    // Hapus dari daftar voice room firebase
     const myVoiceData = voiceUsers.find(v => v.username === currentUser?.username);
     if (myVoiceData) {
       try {
-        await updateDoc(doc(db, "voice_room", myVoiceData.docId), { left: true }); // Atau hapus dokumen jika ingin
+        await updateDoc(doc(db, "voice_room", myVoiceData.docId), { left: true });
       } catch (e) {
         console.log(e);
       }
@@ -393,7 +401,7 @@ export default function App() {
               <Volume2 className="w-4 h-4 text-emerald-400" /><span>🎙️ JST Web Voice Room</span>
             </button>
             <button onClick={() => { setActiveTab('gamelounge'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition ${activeTab === 'gamelounge' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'}`}>
-              <Gamepad className="w-4 h-4" /><span>🕹️ JST Game Lounge (CrazyGames)</span>
+              <Gamepad className="w-4 h-4" /><span>🕹️ JST Game Lounge</span>
             </button>
             <button onClick={() => { setActiveTab('members'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition ${activeTab === 'members' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'}`}>
               <Users className="w-4 h-4" /><span>👥 Daftar Member Lengkap</span>
@@ -471,14 +479,14 @@ export default function App() {
                   Komunitas <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-300">JST Official</span>
                 </h1>
                 <p className="text-slate-300 text-sm sm:text-lg max-w-2xl mx-auto mb-8 font-medium">
-                  Jawa Semua Teman — Ngobrol langsung lewat Web Voice Room, mainkan game online sepuasnya, dan atur profil kerenmu dengan foto pilihanmu sendiri.
+                  Jawa Semua Teman — Ngobrol langsung lewat Web Voice Room, mainkan puluhan game online seru sepuasnya, dan atur profil kerenmu dengan foto pilihanmu sendiri.
                 </p>
                 <div className="flex flex-wrap justify-center gap-4">
                   <button onClick={() => setActiveTab('webvoice')} className="px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-emerald-600/30 transition flex items-center gap-2">
                     <Volume2 className="w-4 h-4" /> Masuk Web Voice Room
                   </button>
                   <button onClick={() => setActiveTab('gamelounge')} className="px-6 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 transition">
-                    🕹️ Main Game CrazyGames Sekarang
+                    🕹️ Main Game Online Sekarang
                   </button>
                 </div>
               </div>
@@ -547,11 +555,11 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB: GAME LOUNGE (CRAZYGAMES BANYAK PILIHAN) */}
+          {/* TAB: GAME LOUNGE (KOLEKSI SANGAT BANYAK) */}
           {activeTab === 'gamelounge' && (
             <div className="space-y-8">
               <div>
-                <h2 className="text-2xl font-black text-white mb-2">🕹️ JST Game Lounge (CrazyGames & Web Multiplayer)</h2>
+                <h2 className="text-2xl font-black text-white mb-2">🕹️ JST Game Lounge (Game Online Web)</h2>
                 <p className="text-xs text-slate-300">Pilih game favoritmu dan mainkan langsung di web tanpa perlu instalasi!</p>
               </div>
 
