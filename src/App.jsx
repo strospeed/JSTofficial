@@ -107,7 +107,7 @@ export default function App() {
 
   const [members, setMembers] = useState([]);
   
-  // PERBAIKAN UTAMA: Langsung baca localStorage saat inisialisasi state agar tidak null saat pertama render/refresh
+  // Baca localStorage secara aman sejak awal rendering agar sesi tidak hilang saat refresh
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const saved = localStorage.getItem('jst_current_user');
@@ -135,6 +135,9 @@ export default function App() {
   const [regAvatarPreview, setRegAvatarPreview] = useState(null);
   const [editProfileForm, setEditProfileForm] = useState({ username: '', city: '', favoriteGame: '', avatar: '' });
   
+  // Event Form State
+  const [eventForm, setEventForm] = useState({ title: '', date: '', description: '' });
+
   // Gallery Upload State
   const [galleryForm, setGalleryForm] = useState({ title: '', tag: 'Gaming' });
   const [galleryPreview, setGalleryPreview] = useState(null);
@@ -146,7 +149,6 @@ export default function App() {
   const [voiceUsers, setVoiceUsers] = useState([]);
 
   useEffect(() => {
-    // Set Favicon Logo di Tab Browser
     const link = document.querySelector("link[rel*='icon']") || document.createElement('link');
     link.type = 'image/x-icon';
     link.rel = 'shortcut icon';
@@ -302,9 +304,22 @@ export default function App() {
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     if (!eventForm.title.trim()) return;
-    const newEvent = { ...eventForm, id: Date.now(), participants: [currentUser?.id] };
-    await addDoc(collection(db, "events"), newEvent);
-    setIsCreateEventOpen(false);
+    
+    const newEvent = { 
+      title: eventForm.title,
+      date: eventForm.date || 'Segera',
+      description: eventForm.description,
+      createdAt: Date.now(), 
+      author: currentUser?.username || 'Member' 
+    };
+
+    try {
+      await addDoc(collection(db, "events"), newEvent);
+      setIsCreateEventOpen(false);
+      setEventForm({ title: '', date: '', description: '' });
+    } catch (err) {
+      console.error("Gagal membuat event:", err);
+    }
   };
 
   const handleUploadGallery = async (e) => {
@@ -319,10 +334,14 @@ export default function App() {
       uploader: currentUser?.username || 'Member' 
     };
     
-    await addDoc(collection(db, "gallery"), newItem);
-    setIsUploadGalleryOpen(false);
-    setGalleryForm({ title: '', tag: 'Gaming' });
-    setGalleryPreview(null);
+    try {
+      await addDoc(collection(db, "gallery"), newItem);
+      setIsUploadGalleryOpen(false);
+      setGalleryForm({ title: '', tag: 'Gaming' });
+      setGalleryPreview(null);
+    } catch (err) {
+      console.error("Gagal upload gallery:", err);
+    }
   };
 
   const toggleVoiceRoom = async () => {
@@ -711,15 +730,27 @@ export default function App() {
                 <h2 className="text-2xl font-black text-white">📅 Event & Turnamen</h2>
                 <button onClick={() => { if (!currentUser) setIsRegisterOpen(true); else setIsCreateEventOpen(true); }} className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30 transition">+ Buat Event</button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {events.map((ev) => (
-                  <div key={ev.docId || ev.id} className="bg-slate-900/85 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 shadow-xl">
-                    <h3 className="font-bold text-white text-base mb-2">{ev.title}</h3>
-                    <p className="text-xs text-slate-300 mb-4">{ev.description}</p>
-                    <div className="text-xs text-indigo-300 font-bold">{ev.date} — {ev.time}</div>
-                  </div>
-                ))}
-              </div>
+
+              {events.length === 0 ? (
+                <div className="text-center py-16 bg-slate-900/85 backdrop-blur-xl rounded-3xl border border-slate-800 shadow-xl">
+                  <p className="text-xs text-slate-300">Belum ada event yang dipublikasikan. Buat event pertamamu!</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {events.map((ev) => (
+                    <div key={ev.docId || ev.id} className="bg-slate-900/85 backdrop-blur-xl border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col justify-between">
+                      <div>
+                        <h3 className="font-bold text-white text-base mb-2">{ev.title}</h3>
+                        <p className="text-xs text-slate-300 mb-4">{ev.description}</p>
+                      </div>
+                      <div className="pt-4 border-t border-slate-800 flex justify-between items-center text-xs text-indigo-300 font-bold">
+                        <span>🗓️ {ev.date}</span>
+                        <span className="text-[10px] text-slate-400">Oleh: {ev.author}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
